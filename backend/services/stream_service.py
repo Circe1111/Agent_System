@@ -2,7 +2,6 @@ import json
 import asyncio
 import logging
 from typing import AsyncGenerator
-from fastapi.responses import EventSourceResponse
 from sqlalchemy.orm import Session
 
 # 项目内部依赖

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from fastapi.responses import EventSourceResponse
+from sse_starlette.sse import EventSourceResponse
 
 from api.common import get_current_user
 from database.connect import get_db
