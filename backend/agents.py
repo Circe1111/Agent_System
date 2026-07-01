@@ -1,14 +1,16 @@
 import os
 import json
-import base64
-import requests
 from dotenv import load_dotenv
-from sqlalchemy.orm import Session
-from app.rag.document_loader import DocumentLoader, TextSplitter, Document
-from app.rag.embeddings import EmbeddingClient
-from app.rag.vector_store import VectorStore, RAGRetriever
-from app.database import get_db, EduProfile, LearningRecord, EduUser
-from app.prompt_manager import prompt_manager
+
+# Internal project imports (RAG + DB + prompts)
+from rag.document_loader import DocumentLoader, TextSplitter, Document
+from rag.embeddings import EmbeddingClient
+from rag.vector_store import VectorStore, RAGRetriever
+from database import get_db, EduProfile, LearningRecord, EduUser
+from prompt.manager import prompt_manager
+
+# Unified LLM client (OpenAI-compatible)
+from services.llm_client import LLMClient
 
 load_dotenv()
 
@@ -26,7 +28,7 @@ def get_retriever():
         print(">>> 未找到FAISS索引，开始构建...")
         loader = DocumentLoader()
         splitter = TextSplitter(chunk_size=500, chunk_overlap=50)
-        
+
         embedding = EmbeddingClient(model_type="local")
         if embedding.model_type == "simple":
             print(">>> 使用简单向量模式（text2vec模型未加载）")
@@ -62,51 +64,24 @@ Python有丰富的第三方库，如numpy、pandas、matplotlib、scikit-learn�
     return _retriever
 
 
-APP_ID = os.getenv("SPARK_APP_ID")
-API_PASSWORD = os.getenv("SPARK_API_PASSWORD")
-MODEL = os.getenv("SPARK_MODEL", "generalv3.5")
-BASE_URL = os.getenv("SPARK_BASE_URL", "https://spark-api-open.xf-yun.com/v1/chat/completions")
-
-
 def call_llm(messages, temperature=0.7, max_tokens=800, max_retries=3):
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {API_PASSWORD}"
-    }
-    payload = {
-        "model": MODEL,
-        "messages": messages,
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-        "stream": False
-    }
-    
+    """Unified LLM call via LLMClient. Returns the assistant text or None."""
+    client = LLMClient()
+    last_err: Exception | None = None
     for attempt in range(max_retries):
         try:
-            response = requests.post(BASE_URL, json=payload, headers=headers, timeout=300)
-            if response.status_code == 200:
-                result = response.json()
-                return result["choices"][0]["message"]["content"]
-            else:
-                print(f">>> API 错误 (HTTP {response.status_code}): {response.text}")
-                if attempt < max_retries - 1:
-                    print(f">>> 重试中 ({attempt + 1}/{max_retries})...")
-                    import time
-                    time.sleep(2)
-                else:
-                    return None
-        except requests.exceptions.Timeout:
-            print(f">>> 请求超时 (第 {attempt + 1}/{max_retries} 次尝试)")
-            if attempt < max_retries - 1:
-                import time
-                time.sleep(3)
-        except Exception as e:
-            print(f">>> 请求异常: {e}")
+            return client.chat_text(
+                messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+        except Exception as exc:  # noqa: BLE001
+            last_err = exc
+            print(f">>> LLM 请求失败 (第 {attempt + 1}/{max_retries} 次): {exc}")
             if attempt < max_retries - 1:
                 import time
                 time.sleep(2)
-            else:
-                return None
+    print(f">>> LLM 彻底失败: {last_err}")
     return None
 
 
@@ -118,7 +93,7 @@ def get_user_profile(user_id: str):
                 try:
                     learning_data = json.loads(user_profile.learning_json)
                     return learning_data
-                except:
+                except Exception:
                     return {"薄弱知识": user_profile.weak_points or ""}
         except Exception as e:
             print(f">>> 获取用户画像失败: {e}")
@@ -151,9 +126,9 @@ def profile_agent(state: dict):
     user_id = state.get("user_id", "")
     messages = state.get("messages", [])
     last_msg = messages[-1].get("content", "") if messages and isinstance(messages[-1], dict) else (messages[-1].content if messages else "无")
-    
+
     db_profile = get_user_profile(user_id)
-    
+
     if db_profile:
         print(f">>> 从数据库获取用户画像: {db_profile.get('姓名', '')}, 薄弱知识: {db_profile.get('薄弱知识', '')}")
         profile = {
@@ -174,10 +149,13 @@ def profile_agent(state: dict):
 维度包括：knowledge_base, cognitive_style, weak_points, interest, learning_pace, emotional_state。"""
 
         response = call_llm([{"role": "user", "content": prompt}])
-        
+
         try:
-            profile = json.loads(response)
-        except:
+            profile = json.loads(response) if response else None
+        except Exception:
+            profile = None
+
+        if not profile:
             profile = {
                 "knowledge_base": "初学者",
                 "cognitive_style": "视觉型",
@@ -198,16 +176,16 @@ def rag_agent(state: dict):
     print(">>> 2. RAG机器人：正在检索知识库...")
     messages = state.get("messages", [])
     last_msg = messages[-1].get("content", "") if messages and isinstance(messages[-1], dict) else (messages[-1].content if messages else "")
-    
+
     retriever = get_retriever()
     embedding = EmbeddingClient(model_type="local")
-    
+
     retrieved_docs = retriever.retrieve(last_msg, embedding, top_k=5)
-    
+
     if not retrieved_docs:
         print(">>> RAG检索无结果，使用默认知识")
         retrieved_docs = [{"content": "Python是一种高级编程语言，支持多种编程范式，包括面向对象、函数式和过程式编程。", "source": "默认知识库"}]
-    
+
     print(f">>> RAG检索完成，找到 {len(retrieved_docs)} 条相关文档")
     return {"retrieved_docs": retrieved_docs}
 
@@ -217,7 +195,7 @@ def generator_agent(state: dict):
     print(">>> 3. 生成机器人：正在为你制作学习资料...")
     profile = state.get("profile", {})
     docs = state.get("retrieved_docs", [])
-    
+
     combined_docs = ""
     doc_sources = []
     for doc in docs:
@@ -226,12 +204,12 @@ def generator_agent(state: dict):
             doc_sources.append(doc.get("source", "未知"))
         else:
             combined_docs += str(doc) + "\n\n"
-    
+
     if not combined_docs.strip():
         combined_docs = "Python是一种高级编程语言，支持多种编程范式。"
-    
+
     topic = profile.get("weak_points", "") or "Python基础"
-    
+
     prompt_text = prompt_manager.render_prompt("P001", topic=topic)
     if prompt_text is None:
         prompt_text = f"""你是一位Python程序设计课程的资深教师。请根据主题「{topic}」生成一份适合大学生学习的讲义。
@@ -240,7 +218,7 @@ def generator_agent(state: dict):
 参考知识：{combined_docs[:500]}"""
 
     content = call_llm([{"role": "user", "content": prompt_text}])
-    
+
     if content is None:
         content = f"""
 1. **知识讲解文档**：{topic}是Python中的重要知识点。
@@ -250,16 +228,16 @@ def generator_agent(state: dict):
    - 题目2：{topic}的进阶应用？
 
 3. **思维导图大纲**：- {topic} - 基础概念 - 应用场景 - 实战练习"""
-    
+
     exercises_prompt = prompt_manager.render_prompt("P002", topic=topic, count=2, difficulty="中等")
     exercises = ""
     if exercises_prompt:
         exercises = call_llm([{"role": "user", "content": exercises_prompt}])
-    
+
     full_content = content
     if exercises:
         full_content += "\n\n## 练习题\n" + exercises
-    
+
     return {"generated_resource": {"type": "multi_resource", "content": full_content}}
 
 
@@ -268,10 +246,10 @@ def guardrail_agent(state: dict):
     print(">>> 4. 审核机器人：正在检查内容质量...")
     content = state.get("generated_resource", {}).get("content", "")
     retry_count = state.get("retry_count", 0)
-    
+
     keywords = ["Python", "代码", "函数", "变量", "循环", "条件", "面向对象", "模块", "文件"]
     has_knowledge = any(k in content for k in keywords)
-    
+
     if has_knowledge and len(content) > 50:
         return {"is_approved": True, "retry_count": retry_count}
     else:
@@ -284,17 +262,17 @@ def planner_agent(state: dict):
     print(">>> 5. 规划机器人：正在制定专属学习路线...")
     profile = state.get("profile", {})
     resource = state.get("generated_resource", {}).get("content", "")
-    
+
     user_id = state.get("user_id", "")
     learning_records = get_user_learning_records(user_id)
-    
+
     records_summary = ""
     if learning_records:
         recent_records = learning_records[-5:]
         records_summary = "\n".join([f"{r['chapter']}: 得分{r['score']}, 正确率{r['correct_rate']}" for r in recent_records])
-    
+
     weak_points = profile.get("weak_points", "")
-    
+
     prompt_text = prompt_manager.render_prompt(
         "P012",
         target_audience=profile.get("name", "学生"),
@@ -302,18 +280,21 @@ def planner_agent(state: dict):
         target_level="熟练掌握",
         available_time=profile.get("time", "每天2小时")
     )
-    
+
     if prompt_text is None:
         prompt_text = f"""你是学业规划师。学生画像：{profile}。
 薄弱知识：{weak_points}
 请规划3个连续的学习步骤（只输出JSON数组格式，不要任何其他文字）：
-[{"step_name": "步骤名", "action": "具体行动", "time_minutes": 分钟数}]"""
+[{{"step_name": "步骤名", "action": "具体行动", "time_minutes": 分钟数}}]"""
 
     response = call_llm([{"role": "user", "content": prompt_text}])
-    
+
     try:
-        path = json.loads(response)
-    except:
+        path = json.loads(response) if response else None
+    except Exception:
+        path = None
+
+    if not path:
         path = [
             {"step_name": "理论学习", "action": "阅读讲解文档", "time_minutes": 20},
             {"step_name": "巩固练习", "action": "完成练习题", "time_minutes": 15},

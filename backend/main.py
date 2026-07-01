@@ -1,11 +1,18 @@
+import json
+
 from api.portrait_router import router as portrait_router
 from api.conversation_router import router as conv_router
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from database.connect import engine, Base
 from api import user
 from utils.exception import register_exception
 from utils.logger import log
+
+# Agent workflow (LangGraph)
+from backend.workflow import create_workflow_graph
+from backend.models_agent import AgentState
 
 Base.metadata.create_all(bind=engine)
 
@@ -34,6 +41,31 @@ app.include_router(portrait_router)
 @app.get("/")
 def root():
     return {"msg": "服务正常，访问 /docs"}
+
+
+@app.post("/agent/chat/stream")
+async def agent_chat_stream(request: dict):
+    """SSE streaming endpoint for the AI agent workflow.
+
+    Drives the full ``profile -> rag -> generator -> guardrail -> planner``
+    pipeline and streams LangGraph events to the client as Server-Sent Events.
+    """
+    async def event_stream():
+        graph = create_workflow_graph()
+        state = AgentState(
+            user_id=request.get("user_id", "default"),
+            messages=[{"role": "user", "content": request.get("message", "")}],
+            profile={}, retrieved_docs=[], generated_resource={},
+            is_approved=False, learning_path=[], retry_count=0
+        )
+        try:
+            for event in graph.stream(state):
+                yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+        except Exception as exc:  # noqa: BLE001
+            yield f"data: {json.dumps({'error': str(exc)}, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
 
 if __name__ == "__main__":
     import uvicorn

@@ -1,88 +1,13 @@
-import os
+"""Profile / utility helpers backed by the unified LLMClient.
+
+All transport goes through `services.llm_client.LLMClient`.  There is no
+provider-specific code in this file.
+"""
 import json
-import base64
-import requests
-from dotenv import load_dotenv
+import logging
+from services.llm_client import LLMClient
 
-load_dotenv()
-
-
-class LLMClient:
-    def __init__(self, provider="xunfei"):
-        self.provider = provider
-        self.config = self._load_config()
-    
-    def _load_config(self):
-        config = {}
-        if self.provider == "xunfei":
-            config["api_key"] = os.getenv("SPARK_API_KEY")
-            config["api_secret"] = os.getenv("SPARK_API_SECRET")
-            config["model"] = os.getenv("SPARK_MODEL", "spark-x2")
-            config["base_url"] = os.getenv("SPARK_BASE_URL", "https://spark-api-open.xf-yun.com/x2/chat/completions")
-        elif self.provider == "deepseek":
-            config["api_key"] = os.getenv("DEEPSEEK_API_KEY")
-            config["model"] = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
-            config["base_url"] = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com/v1/chat/completions")
-        return config
-    
-    def call(self, messages, temperature=0.7, max_tokens=4096):
-        if self.provider == "xunfei":
-            return self._call_xunfei(messages, temperature, max_tokens)
-        elif self.provider == "deepseek":
-            return self._call_deepseek(messages, temperature, max_tokens)
-        else:
-            raise ValueError(f"不支持的provider: {self.provider}")
-    
-    def _call_xunfei(self, messages, temperature, max_tokens):
-        auth_string = f"{self.config['api_key']}:{self.config['api_secret']}"
-        encoded_auth = base64.b64encode(auth_string.encode('utf-8')).decode('utf-8')
-        
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {encoded_auth}"
-        }
-        payload = {
-            "model": self.config["model"],
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "stream": False
-        }
-        try:
-            response = requests.post(self.config["base_url"], json=payload, headers=headers, timeout=60)
-            if response.status_code == 200:
-                result = response.json()
-                return result["choices"][0]["message"]["content"]
-            else:
-                print(f">>> 讯飞API错误 (HTTP {response.status_code}): {response.text}")
-                return None
-        except Exception as e:
-            print(f">>> 讯飞请求异常: {e}")
-            return None
-    
-    def _call_deepseek(self, messages, temperature, max_tokens):
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {self.config['api_key']}"
-        }
-        payload = {
-            "model": self.config["model"],
-            "messages": messages,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "stream": False
-        }
-        try:
-            response = requests.post(self.config["base_url"], json=payload, headers=headers, timeout=60)
-            if response.status_code == 200:
-                result = response.json()
-                return result["choices"][0]["message"]["content"]
-            else:
-                print(f">>> DeepSeek API错误 (HTTP {response.status_code}): {response.text}")
-                return None
-        except Exception as e:
-            print(f">>> DeepSeek请求异常: {e}")
-            return None
+logger = logging.getLogger(__name__)
 
 
 PROFILE_PROMPT = """你是一位专业的教育心理学专家，擅长分析学生的学习特征。
@@ -101,31 +26,31 @@ PROFILE_PROMPT = """你是一位专业的教育心理学专家，擅长分析学
 {dialogue}
 
 输出格式（严格JSON，无其他内容）：
-{"knowledge_base": "...", "cognitive_style": "...", "weak_points": "...", "interest": "...", "learning_pace": "...", "emotional_state": "..."}"""
+{{"knowledge_base": "...", "cognitive_style": "...", "weak_points": "...", "interest": "...", "learning_pace": "...", "emotional_state": "..."}}"""
 
 
-def extract_profile(dialogue):
+def extract_profile(dialogue: str) -> dict | None:
+    """Run the profile prompt through LLMClient and parse JSON output."""
     prompt = PROFILE_PROMPT.format(dialogue=dialogue)
     client = LLMClient()
-    response = client.call([{"role": "user", "content": prompt}])
-    
+    response = client.chat_text([{"role": "user", "content": prompt}])
+
     if response is None:
         return None
-    
+
     try:
-        profile = json.loads(response)
-        return profile
+        return json.loads(response)
     except json.JSONDecodeError:
-        print(f">>> JSON解析失败，原始响应: {response[:200]}")
+        logger.warning("JSON 解析失败，原始响应: %s", response[:200])
         return None
 
 
-def get_default_profile():
+def get_default_profile() -> dict:
     return {
         "knowledge_base": "初学者",
         "cognitive_style": "视觉型",
         "weak_points": "数学推导,逻辑推理",
         "interest": "人工智能,机器学习,编程",
         "learning_pace": "中等",
-        "emotional_state": "积极"
+        "emotional_state": "积极",
     }

@@ -7,47 +7,78 @@ load_dotenv()
 
 
 class EmbeddingClient:
-    def __init__(self, model_type: str = "local"):
+    """Embedding client with three modes:
+
+    * ``openai``  — primary; uses the unified ``LLMClient`` (OpenAI-compatible)
+                    hitting ``/embeddings``.  Configure via LLM_API_KEY /
+                    LLM_BASE_URL / LLM_EMBED_MODEL.
+    * ``local``   — offline fallback; uses ``text2vec`` SentenceModel
+                    (``shibing624/text2vec-base-chinese``).  Falls back to the
+                    ``simple`` mode if the model is unavailable.
+    * ``simple``  — last-resort deterministic hash vectors (no network, no
+                    model download).  Used only when nothing else works.
+    """
+
+    def __init__(self, model_type: str = "openai"):
         self.model_type = model_type
         self.model = None
+        self._client = None
         self._load_model()
 
     def _load_model(self):
+        if self.model_type == "openai":
+            try:
+                from services.llm_client import LLMClient
+                self._client = LLMClient()
+            except Exception as exc:  # noqa: BLE001
+                print(f">>> OpenAI Embedding 初始化失败: {exc}，回退到 local")
+                self.model_type = "local"
+                self._load_model()
         if self.model_type == "local":
             try:
-                import os
                 os.environ["TRANSFORMERS_OFFLINE"] = "0"
                 from text2vec import SentenceModel
                 self.model = SentenceModel("shibing624/text2vec-base-chinese", device="cpu")
             except Exception as e:
                 print(f">>> text2vec初始化失败: {e}，将使用简单向量表示")
                 self.model_type = "simple"
-        elif self.model_type == "xunfei":
-            self._init_xunfei()
+        elif self.model_type == "simple":
+            return
 
-    def _init_xunfei(self):
-        self.spark_app_id = os.getenv("SPARK_APP_ID")
-        self.spark_api_key = os.getenv("SPARK_API_KEY")
-        self.spark_api_secret = os.getenv("SPARK_API_SECRET")
+    # ---- public ------------------------------------------------------------
 
     def embed(self, texts: List[str]) -> List[np.ndarray]:
-        if self.model_type == "local" and self.model:
+        if self.model_type == "openai" and self._client is not None:
+            return self._embed_openai(texts)
+        if self.model_type == "local" and self.model is not None:
             return self._embed_local(texts)
-        elif self.model_type == "xunfei":
-            return self._embed_xunfei(texts)
-        elif self.model_type == "simple":
+        if self.model_type == "simple":
             return self._embed_simple(texts)
-        else:
-            raise ValueError(f"不支持的模型类型: {self.model_type}")
+        raise ValueError(f"不支持或未初始化的模型类型: {self.model_type}")
 
-    def _clean_text(self, text: str) -> str:
+    def embed_query(self, query: str) -> np.ndarray:
+        return self.embed([query])[0]
+
+    # ---- internals ---------------------------------------------------------
+
+    @staticmethod
+    def _clean_text(text: str) -> str:
         if not text:
             return ""
         try:
             text = text.encode('utf-8', errors='replace').decode('utf-8')
-        except:
+        except Exception:
             text = ''.join(c for c in text if c.isprintable() or c in '\n\r\t ')
         return text
+
+    def _embed_openai(self, texts: List[str]) -> List[np.ndarray]:
+        try:
+            cleaned = [self._clean_text(t) for t in texts]
+            vecs = self._client.embed(cleaned)
+            return [np.asarray(v, dtype=np.float32) for v in vecs]
+        except Exception as exc:  # noqa: BLE001
+            print(f">>> OpenAI Embedding 请求失败: {exc}，回退到 simple")
+            return self._embed_simple(texts)
 
     def _embed_simple(self, texts: List[str]) -> List[np.ndarray]:
         import hashlib
@@ -62,50 +93,9 @@ class EmbeddingClient:
 
     def _embed_local(self, texts: List[str]) -> List[np.ndarray]:
         try:
-            embeddings = self.model.encode(texts, show_progress_bar=False)
+            cleaned = [self._clean_text(t) for t in texts]
+            embeddings = self.model.encode(cleaned, show_progress_bar=False)
             return [np.array(embedding) for embedding in embeddings]
         except Exception as e:
             print(f">>> 本地Embedding失败: {e}")
             return [np.zeros(768) for _ in texts]
-
-    def _embed_xunfei(self, texts: List[str]) -> List[np.ndarray]:
-        try:
-            import requests
-            import base64
-
-            auth_string = f"{self.spark_api_key}:{self.spark_api_secret}"
-            encoded_auth = base64.b64encode(auth_string.encode('utf-8')).decode('utf-8')
-
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {encoded_auth}"
-            }
-
-            results = []
-            for text in texts:
-                payload = {
-                    "model": "spark-embedding-3",
-                    "input": text,
-                    "parameters": {"text_type": "query"}
-                }
-
-                response = requests.post(
-                    "https://spark-api-open.xf-yun.com/v1/text/embeddings",
-                    json=payload, headers=headers, timeout=60
-                )
-
-                if response.status_code == 200:
-                    result = response.json()
-                    embedding = result["data"][0]["embedding"]
-                    results.append(np.array(embedding))
-                else:
-                    print(f">>> 讯飞Embedding API错误: {response.text}")
-                    results.append(np.zeros(1024))
-
-            return results
-        except Exception as e:
-            print(f">>> 讯飞Embedding请求异常: {e}")
-            return [np.zeros(1024) for _ in texts]
-
-    def embed_query(self, query: str) -> np.ndarray:
-        return self.embed([query])[0]
