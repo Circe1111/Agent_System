@@ -33,6 +33,11 @@
           <span v-if="!isCollapse">AI对话</span>
         </el-menu-item>
 
+        <el-menu-item index="user-profile" @click="navigateTo('/user-profile')">
+          <el-icon><DataAnalysis /></el-icon>
+          <span v-if="!isCollapse">偏好</span>
+        </el-menu-item>
+
         <el-menu-item index="path" @click="navigateTo('/path')">
           <el-icon><Guide /></el-icon>
           <span v-if="!isCollapse">学习路径</span>
@@ -108,6 +113,7 @@ import {
   UserFilled,
   Fold,
   Expand,
+  DataAnalysis,
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -124,7 +130,7 @@ const pageTitle = computed(() => {
   const titles = {
     '/dashboard': '系统首页',
     '/profile': '个人中心',
-    '/user-profile': '用户画像',
+    '/user-profile': '偏好',
     '/chat': 'AI智能对话',
     '/path': '个性化学习路径',
     '/resources': '学习资源中心',
@@ -163,6 +169,7 @@ const updateActiveMenu = () => {
   if (path.includes('/dashboard')) activeMenu.value = 'dashboard'
   else if (path.includes('/profile')) activeMenu.value = 'profile'
   else if (path.includes('/chat')) activeMenu.value = 'chat'
+  else if (path.includes('/user-profile')) activeMenu.value = 'user-profile'
   else if (path.includes('/path')) activeMenu.value = 'path'
   else if (path.includes('/resources')) activeMenu.value = 'resources'
   else if (path.includes('/admin')) activeMenu.value = 'admin'
