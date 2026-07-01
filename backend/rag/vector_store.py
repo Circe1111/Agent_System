@@ -1,4 +1,5 @@
 import os
+import json
 import pickle
 import numpy as np
 from typing import List, Tuple, Optional
@@ -54,12 +55,12 @@ class VectorStore:
         import faiss
         faiss.write_index(self.index, f"{self.index_path}.faiss")
 
-        with open(f"{self.index_path}_docs.pkl", "wb") as f:
-            pickle.dump(self.documents, f)
+        with open(f"{self.index_path}_docs.json", "w", encoding="utf-8") as f:
+            json.dump([doc.to_dict() for doc in self.documents], f, ensure_ascii=False)
 
     def load(self) -> bool:
         faiss_path = f"{self.index_path}.faiss"
-        docs_path = f"{self.index_path}_docs.pkl"
+        docs_path = f"{self.index_path}_docs.json"
 
         if not os.path.exists(faiss_path) or not os.path.exists(docs_path):
             return False
@@ -68,8 +69,9 @@ class VectorStore:
             import faiss
             self.index = faiss.read_index(faiss_path)
 
-            with open(docs_path, "rb") as f:
-                self.documents = pickle.load(f)
+            with open(docs_path, "r", encoding="utf-8") as f:
+                raw = json.load(f)
+                self.documents = [Document(content=d["content"], metadata=d.get("metadata", {})) for d in raw]
 
             return True
         except Exception as e:
