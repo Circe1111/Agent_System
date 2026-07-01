@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Form
 from sqlalchemy.orm import Session
 from database.connect import get_db
 from database import crud
@@ -14,11 +14,11 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     db_user = crud.get_user_by_username(db, user.username)
     if db_user:
         raise ApiException(code=400, msg="用户名已存在")
-    new_user = crud.create_user(db, user.dict())
+    new_user = crud.create_user(db, user.model_dump())
     return success(data=UserOut.model_validate(new_user).model_dump())
 
 @router.post("/login")
-def login(username: str, password: str, db: Session = Depends(get_db)):
+def login(username: str = Form(...), password: str = Form(...), db: Session = Depends(get_db)):
     user = crud.get_user_by_username(db, username)
     if not user or not crud.verify_password(password, user.password):
         raise ApiException(400, "账号密码错误")

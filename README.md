@@ -1,148 +1,196 @@
 # EduAgent
 
-基于大模型的个性化学习多智能体系统 — 一键 Docker 部署
+基于大模型的个性化学习多智能体系统 —— 一键 Docker 部署，无需配置环境。
 
 ---
 
-## 快速开始（3 步，5 分钟）
+## 快速开始（共 3 步，约 5 分钟）
 
-### 第 1 步：配置 API Key
+### 准备工作：安装 Docker
 
-在项目目录下，复制环境变量模板：
+**Windows 用户：**
 
+1. 下载 [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+2. 双击安装，一路点"下一步"
+3. 安装完成后启动 Docker Desktop，等待右下角图标变绿（**白色鲸鱼图标**）
+4. 打开 PowerShell（开始菜单 → 搜索 "PowerShell" → 打开）
+5. 输入 `docker --version`，看到版本号就说明安装成功
+
+**Mac 用户：**
+
+同上，下载安装 Docker Desktop 即可。
+
+**Linux 用户（Ubuntu/Debian）：**
+
+```bash
+sudo apt update
+sudo apt install docker.io docker-compose-v2 -y
+sudo usermod -aG docker $USER
+# 重新登录终端使权限生效
+sudo service docker start
+docker --version   # 验证安装
 ```
+
+---
+
+### 第 1 步：配置 API Key（AI 聊天要用）
+
+打开**终端**（Windows 用 PowerShell），进入项目文件夹：
+
+```bash
+# 先进入项目目录（根据实际位置调整）
+cd EduAgent
+
+# 复制环境变量模板
 cp .env.example .env
 ```
 
-用记事本（或任意编辑器）打开 `.env` 文件，把 `LLM_API_KEY` 改成你自己的 OpenAI 兼容 API Key：
+然后用**记事本**（Windows）或任意文本编辑器打开 `.env` 文件：
+
+```bash
+# Windows PowerShell:
+notepad .env
+
+# Mac / Linux:
+nano .env
+```
+
+找到这两行，修改成你自己的 API Key：
 
 ```env
-LLM_API_KEY="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+LLM_API_KEY="sk-你的API密钥"
+LLM_BASE_URL="https://api.openai.com/v1"
+LLM_MODEL="gpt-4o"
 ```
 
-> **哪里获取 API Key？** 如果你用的是 OpenCode 套餐，在 OpenCode 设置页面可以找到。如果你用 DeepSeek，去 platform.deepseek.com 注册获取。如果你用 OpenAI，去 platform.openai.com 获取。
+> ❓ **没有 API Key？**
+> - **DeepSeek**：去 [platform.deepseek.com](https://platform.deepseek.com) 注册 → 创建 API Key
+> - **OpenAI**：去 [platform.openai.com](https://platform.openai.com) 获取
+> - **其他兼容服务**：修改 `LLM_BASE_URL` 和 `LLM_MODEL` 即可
 
-### 第 2 步：启动服务
+---
 
-打开终端（PowerShell 或 WSL），进入项目目录，输入：
+### 第 2 步：一键启动
 
-```
+打开**终端**，在项目目录下执行：
+
+```bash
 docker compose up -d
 ```
 
-首次运行会自动下载镜像、安装依赖、初始化数据库。等待约 2-3 分钟。
+> 首次启动会自动下载镜像、安装依赖、创建数据库，**大约等 2-3 分钟**。之后启动只需几秒。
+
+查看启动进度：
+
+```bash
+docker compose logs backend --tail=20
+```
+
+看到 `Uvicorn running on http://0.0.0.0:8000` 就说明启动完成。
+
+---
 
 ### 第 3 步：打开浏览器
 
-| 地址 | 功能 |
+| 地址 | 说明 |
 |------|------|
-| http://localhost | 前端页面 |
+| http://localhost | 🔥 **前端页面**（主要使用） |
 | http://localhost:8000/docs | 后端 API 文档 |
 
-**默认账号**: `admin` / `admin123`
-
----
-
-## 前置要求
-
-### Windows 用户（Docker Desktop）
-
-1. 下载安装 [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-2. 安装后启动 Docker Desktop，等待右下角图标变绿
-3. 打开 PowerShell 或命令提示符，输入 `docker --version` 确认安装成功
-
-### WSL 用户
-
-1. 在 WSL 终端中安装 Docker：
-   ```bash
-   sudo apt update && sudo apt install docker.io docker-compose-v2 -y
-   sudo usermod -aG docker $USER
-   # 重新登录 WSL 使权限生效
-   ```
-2. 启动 Docker 服务：`sudo service docker start`
-3. 验证：`docker --version`
-
----
-
-## 组员使用指南
-
-### 方式 A：从 GitHub 克隆（推荐）
-
-```bash
-git clone https://github.com/Hexingxing-26/EduAgent.git
-cd EduAgent
-cp .env.example .env          # 编辑 .env 填入 API Key
-docker compose up -d           # 一键启动
-```
-
-### 方式 B：从压缩包部署
-
-如果你收到了 `eduagent-dist.tar.gz` 文件：
-
-**Windows (PowerShell):**
-```powershell
-tar -xzf eduagent-dist.tar.gz
-cd eduagent-dist
-notepad .env                   # 编辑填入 API Key
-docker compose up -d
-```
-
-**WSL / Linux / Mac:**
-```bash
-tar -xzf eduagent-dist.tar.gz
-cd eduagent-dist
-nano .env                      # 编辑填入 API Key
-docker compose up -d
-```
-
----
-
-## 停止和重启
-
-```bash
-docker compose down            # 停止服务
-docker compose up -d           # 重新启动（数据不丢失）
-docker compose down -v         # 完全清除（包括数据库数据）
-```
-
----
-
-## 默认账号
+**演示账号（登录页面可看到）：**
 
 | 用户名 | 密码 | 角色 |
 |--------|------|------|
-| admin | admin123 | 管理员 |
-| student1 | 123456 | 学生 |
+| `admin` | `admin123` | 管理员 |
+| `student1` | `123456` | 学生 |
+
+---
+
+## 常用命令
+
+```bash
+# 启动服务
+docker compose up -d
+
+# 查看后端日志（排查问题）
+docker compose logs backend
+
+# 停止服务（数据保留）
+docker compose down
+
+# 重新启动
+docker compose up -d
+
+# 完全重置（删除所有数据，慎用！）
+docker compose down -v
+```
 
 ---
 
 ## 环境变量说明
 
+打开 `.env` 文件可以看到所有配置：
+
 | 变量 | 说明 | 示例 |
 |------|------|------|
-| LLM_API_KEY | LLM API 密钥（必填） | sk-xxxx |
-| LLM_BASE_URL | OpenAI 兼容接口地址 | https://api.openai.com/v1 |
-| LLM_MODEL | 模型名称 | gpt-4o |
-| DATABASE_URL | 数据库连接 | sqlite:///./edu_agent.db |
-| JWT_SECRET_KEY | JWT 密钥（必填） | 随机字符串 32 位以上 |
-| BACKEND_PORT | 后端端口 | 8000 |
-| FRONTEND_PORT | 前端端口 | 80 |
+| `LLM_API_KEY` | API 密钥（**必填**） | sk-xxxx |
+| `LLM_BASE_URL` | API 接口地址 | https://api.openai.com/v1 |
+| `LLM_MODEL` | 模型名称 | gpt-4o |
+| `BACKEND_PORT` | 后端端口（默认 8000） | 8000 |
+| `FRONTEND_PORT` | 前端端口（默认 80） | 80 |
+
+> 如果 80 端口被占用（显示"无法连接"），修改 `.env` 中的 `FRONTEND_PORT=8080`，然后重新启动，访问 `http://localhost:8080`。
 
 ---
 
 ## 常见问题
 
-**Q: 启动后访问 localhost 显示"无法连接"？**
-A: 等待 1-2 分钟，首次启动需要初始化数据库和下载模型。可以用 `docker compose logs backend` 查看后端日志。
+### Q：启动后 http://localhost 打不开？
 
-**Q: AI 聊天无回复？**
-A: 检查 `.env` 中的 `LLM_API_KEY` 是否正确。查看日志：`docker compose logs backend | grep ERROR`
+**A：** 首次启动需要 2-3 分钟初始化，等一会儿再刷新。如果还是不行：
 
-**Q: Docker Desktop 提示"WSL integration not enabled"？**
-A: 打开 Docker Desktop → Settings → Resources → WSL Integration → 启用你的 WSL 发行版
+```bash
+# 查看后端是否正常运行
+docker compose ps
+# 查看日志找错误
+docker compose logs backend
+```
 
-**Q: 端口被占用？**
-A: 修改 `.env` 中的 `BACKEND_PORT` 和 `FRONTEND_PORT`，然后重新 `docker compose up -d`
+### Q：登录提示"账号密码错误"？
+
+**A：** 确认使用的是正确的演示账号：
+- 管理员：`admin` / `admin123`
+- 学生：`student1` / `123456`
+
+如果数据库被重置过，可能需要重新创建账号。
+
+### Q：AI 聊天没有回复？
+
+**A：** 检查 `.env` 文件中的 `LLM_API_KEY` 是否正确填写：
+
+```bash
+docker compose logs backend | grep ERROR
+```
+
+### Q：Docker 提示"端口被占用"？
+
+**A：** 修改 `.env` 中的端口号：
+
+```env
+BACKEND_PORT=8080
+FRONT_PORT=8081
+```
+
+然后重新启动：`docker compose up -d`
+
+### Q：Windows 提示"WSL integration not enabled"？
+
+**A：**
+1. 打开 Docker Desktop
+2. 点击右上角 ⚙️ Settings
+3. 选择 Resources → WSL Integration
+4. 打开你的 WSL 发行版开关
+5. 点击 Apply & Restart
 
 ---
 

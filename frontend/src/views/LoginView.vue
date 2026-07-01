@@ -49,9 +49,8 @@
 
       <div class="demo-login">
         <p>演示账号：</p>
-        <el-tag type="success">学生：student / 123456</el-tag>
-        <el-tag type="warning">教师：teacher / 123456</el-tag>
-        <el-tag type="danger">管理员：admin / 123456</el-tag>
+        <el-tag type="success">学生：student1 / 123456</el-tag>
+        <el-tag type="warning">管理员：admin / admin123</el-tag>
       </div>
     </el-card>
   </div>
