@@ -142,6 +142,10 @@ const sendMessage = async () => {
     message,
     sessionId.value,
     (chunk) => {
+      if (chunk.type === 'error') {
+        ElMessage.error(chunk.msg || 'AI 服务暂时不可用，请稍后重试')
+        return
+      }
       // 兼容多种后端字段：content / text / delta / message
       const piece =
         chunk.content ??

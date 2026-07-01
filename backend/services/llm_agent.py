@@ -49,7 +49,7 @@ async def chat_stream(
         ) as resp:
             if resp.status_code != 200:
                 logger.error("stream HTTP %s: %s", resp.status_code, resp.text)
-                return
+                raise Exception(f"LLM HTTP {resp.status_code}: {resp.text[:200]}")
             for raw in resp.iter_lines(decode_unicode=True):
                 if not raw or not raw.startswith("data:"):
                     continue
@@ -65,7 +65,7 @@ async def chat_stream(
                     continue
     except Exception as exc:  # noqa: BLE001
         logger.error("chat_stream failed: %s", exc)
-        return
+        raise
 
 
 # ---------------------------------------------------------------------------
