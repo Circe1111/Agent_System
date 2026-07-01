@@ -5,9 +5,9 @@ streaming / agent code paths.  No provider-specific code lives here.
 """
 import json
 import logging
-from typing import AsyncGenerator, Iterator, List, Optional
+from typing import AsyncGenerator, List, Optional
 
-import requests
+import httpx
 
 from services.llm_client import LLMClient
 
@@ -24,11 +24,7 @@ async def chat_stream(
     max_tokens: int = 4096,
     **kwargs,
 ) -> AsyncGenerator[str, None]:
-    """Stream chat completions token-by-token.
-
-    Yields decoded content deltas.  Uses `requests` with `stream=True` to
-    avoid pulling in the official `openai` package.
-    """
+    """Stream chat completions token-by-token via async HTTP."""
     client = LLMClient()
     payload = {
         "model": client.model,
@@ -40,29 +36,32 @@ async def chat_stream(
     payload.update(kwargs)
 
     try:
-        with requests.post(
-            client._chat_url(),
-            headers=client._headers(),
-            json=payload,
-            stream=True,
-            timeout=client.timeout,
-        ) as resp:
-            if resp.status_code != 200:
-                logger.error("stream HTTP %s: %s", resp.status_code, resp.text)
-                raise Exception(f"LLM HTTP {resp.status_code}: {resp.text[:200]}")
-            for raw in resp.iter_lines(decode_unicode=True):
-                if not raw or not raw.startswith("data:"):
-                    continue
-                data_str = raw[len("data:"):].strip()
-                if data_str == "[DONE]":
-                    break
-                try:
-                    chunk = json.loads(data_str)
-                    delta = chunk["choices"][0]["delta"].get("content", "")
-                    if delta:
-                        yield delta
-                except Exception:  # noqa: BLE001
-                    continue
+        async with httpx.AsyncClient(timeout=client.timeout) as http:
+            async with http.stream(
+                "POST",
+                client._chat_url(),
+                headers=client._headers(),
+                json=payload,
+            ) as resp:
+                if resp.status_code != 200:
+                    body = await resp.aread()
+                    logger.error("stream HTTP %s: %s", resp.status_code, body)
+                    raise Exception(
+                        f"LLM HTTP {resp.status_code}: {body[:200]}"
+                    )
+                async for raw in resp.aiter_lines():
+                    if not raw or not raw.startswith("data:"):
+                        continue
+                    data_str = raw[len("data:"):].strip()
+                    if data_str == "[DONE]":
+                        break
+                    try:
+                        chunk = json.loads(data_str)
+                        delta = chunk["choices"][0]["delta"].get("content", "")
+                        if delta:
+                            yield delta
+                    except Exception:  # noqa: BLE001
+                        continue
     except Exception as exc:  # noqa: BLE001
         logger.error("chat_stream failed: %s", exc)
         raise
