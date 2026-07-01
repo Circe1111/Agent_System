@@ -14,7 +14,7 @@ class Document:
 class DocumentLoader:
     def __init__(self, data_dir: str = "data"):
         self.data_dir = data_dir
-        self.knowledge_base_dir = os.path.join("数据", "数据", "知识库数据")
+        self.knowledge_base_dir = os.path.join("data", "知识库数据")
 
     def load_file(self, file_path: str) -> Document:
         _, ext = os.path.splitext(file_path)

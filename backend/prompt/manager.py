@@ -8,7 +8,7 @@ class PromptManager:
         self._load_prompts()
 
     def _load_prompts(self):
-        data_path = os.path.join("数据", "数据", "Prompt模板", "prompt_templates.json")
+        data_path = os.path.join("data", "Prompt模板", "prompt_templates.json")
         if os.path.exists(data_path):
             with open(data_path, "r", encoding="utf-8") as f:
                 data = json.load(f)

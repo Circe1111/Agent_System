@@ -6,7 +6,7 @@ from app.database import engine, Base, EduUser, EduProfile, LearningRecord, Sess
 
 
 def load_student_data():
-    data_path = os.path.join("数据", "数据", "学生画像数据", "student_data.json")
+    data_path = os.path.join("data", "学生画像数据", "student_data.json")
     if os.path.exists(data_path):
         with open(data_path, "r", encoding="utf-8") as f:
             content = f.read()
@@ -20,7 +20,7 @@ def load_student_data():
 
 
 def load_learning_records():
-    data_path = os.path.join("数据", "数据", "学习记录", "learning_records.json")
+    data_path = os.path.join("data", "学习记录", "learning_records.json")
     if os.path.exists(data_path):
         with open(data_path, "r", encoding="utf-8") as f:
             return json.load(f)
