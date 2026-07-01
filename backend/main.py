@@ -39,6 +39,8 @@ app.include_router(conv_router)
 # 注册用户画像模块接口
 app.include_router(portrait_router)
 app.include_router(chat_stream_router)
+from api.settings_router import router as settings_router
+app.include_router(settings_router)
 
 @app.get("/")
 def root():
