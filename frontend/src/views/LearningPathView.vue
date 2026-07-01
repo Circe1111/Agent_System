@@ -1,6 +1,6 @@
 <template>
   <div class="path-container">
-    <el-card header="个性化学习路径">
+    <el-card :header="$route.query.courseName || '个性化学习路径'">
       <el-row :gutter="20">
         <el-col :span="16">
           <div class="path-steps">
@@ -70,6 +70,9 @@
             >
               开始下一步
             </el-button>
+            <el-button type="warning" @click="goBackStep" :disabled="!canGoBack">
+              返回上一步
+            </el-button>
           </el-card>
         </el-col>
       </el-row>
@@ -78,56 +81,66 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useUserStore } from '@/stores'
 import { ElMessage } from 'element-plus'
 
 const userStore = useUserStore()
+const route = useRoute()
 const generating = ref(false)
 
-// 模拟学习路径数据
-const learningPath = ref([
-  {
-    id: 1,
-    title: 'Python基础语法',
-    description: '学习Python的基本语法、变量、数据类型等基础知识',
-    status: 'completed',
-    date: '2024-01-01',
-    duration: 60,
+const getDefaultPath = (courseId) => {
+  const paths = {
+    '1': [
+      { id: 1, title: 'Python基础语法', description: '变量、数据类型、控制流', status: 'completed', date: '2024-01-01', duration: 60 },
+      { id: 2, title: '函数与模块', description: '函数定义、参数传递、模块导入', status: 'completed', date: '2024-01-03', duration: 90 },
+      { id: 3, title: '面向对象编程', description: '类、对象、继承、封装', status: 'in-progress', date: '2024-01-05', duration: 75 },
+      { id: 4, title: '文件操作', description: '文件读写、异常处理', status: 'pending', date: '2024-01-07', duration: 45 },
+      { id: 5, title: '常用库实战', description: 'requests、json、datetime', status: 'pending', date: '2024-01-10', duration: 60 },
+    ],
+    '2': [
+      { id: 1, title: '监督学习概述', description: '回归与分类问题定义', status: 'completed', date: '2024-02-01', duration: 45 },
+      { id: 2, title: '线性回归', description: '最小二乘法、梯度下降', status: 'completed', date: '2024-02-03', duration: 90 },
+      { id: 3, title: '决策树与随机森林', description: '信息增益、集成学习', status: 'in-progress', date: '2024-02-05', duration: 120 },
+      { id: 4, title: 'SVM支持向量机', description: '核函数、软间隔', status: 'pending', date: '2024-02-08', duration: 90 },
+      { id: 5, title: '神经网络入门', description: '感知机、反向传播', status: 'pending', date: '2024-02-10', duration: 120 },
+    ],
+    '3': [
+      { id: 1, title: '神经网络基础', description: '激活函数、损失函数', status: 'completed', date: '2024-03-01', duration: 60 },
+      { id: 2, title: 'CNN卷积网络', description: '卷积层、池化层', status: 'completed', date: '2024-03-03', duration: 90 },
+      { id: 3, title: 'RNN与LSTM', description: '序列建模、门控机制', status: 'in-progress', date: '2024-03-05', duration: 120 },
+      { id: 4, title: 'Transformer架构', description: '自注意力、位置编码', status: 'pending', date: '2024-03-08', duration: 150 },
+      { id: 5, title: '模型部署', description: 'ONNX、TensorRT', status: 'pending', date: '2024-03-12', duration: 90 },
+    ],
+  }
+  return paths[courseId] || paths['1']
+}
+
+const learningPath = ref([])
+
+onMounted(() => {
+  const courseId = route.query.courseId || '1'
+  const stored = localStorage.getItem(`learningPath_${courseId}`)
+  if (stored) {
+    try {
+      learningPath.value = JSON.parse(stored)
+    } catch {
+      learningPath.value = getDefaultPath(courseId)
+    }
+  } else {
+    learningPath.value = getDefaultPath(courseId)
+  }
+})
+
+watch(
+  learningPath,
+  (val) => {
+    const courseId = route.query.courseId || '1'
+    localStorage.setItem(`learningPath_${courseId}`, JSON.stringify(val))
   },
-  {
-    id: 2,
-    title: '数据结构与算法',
-    description: '掌握Python中的列表、字典、集合等数据结构的使用',
-    status: 'completed',
-    date: '2024-01-03',
-    duration: 90,
-  },
-  {
-    id: 3,
-    title: '函数与模块',
-    description: '学习函数定义、参数传递、模块导入等高级特性',
-    status: 'in-progress',
-    date: '2024-01-05',
-    duration: 75,
-  },
-  {
-    id: 4,
-    title: '面向对象编程',
-    description: '理解类、对象、继承、封装等OOP概念',
-    status: 'pending',
-    date: '2024-01-07',
-    duration: 120,
-  },
-  {
-    id: 5,
-    title: '文件操作与异常处理',
-    description: '学习文件读写、异常处理机制',
-    status: 'pending',
-    date: '2024-01-10',
-    duration: 45,
-  },
-])
+  { deep: true },
+)
 
 const completedSteps = computed(
   () => learningPath.value.filter((step) => step.status === 'completed').length,
@@ -152,6 +165,11 @@ const progressColor = computed(() => {
   if (completionRate.value >= 80) return '#67c23a'
   if (completionRate.value >= 50) return '#e6a23c'
   return '#f56c6c'
+})
+
+const canGoBack = computed(() => {
+  // Can go back if there's an in-progress or completed step (not if everything is pending)
+  return learningPath.value.some((s) => s.status === 'completed' || s.status === 'in-progress')
 })
 
 const getStepColor = (status) => {
@@ -188,20 +206,23 @@ const getStatusText = (status) => {
 const generatePath = async () => {
   generating.value = true
   try {
-    // 模拟重新生成路径
+    // Simulate API call: POST /path/generate with courseId
+    // TODO: Replace with real API call when backend endpoint is ready
+    // const res = await generateLearningPath({ courseId: route.query.courseId })
     await new Promise((resolve) => setTimeout(resolve, 1000))
 
-    // 重置状态
-    learningPath.value.forEach((step, index) => {
-      if (index < 2) {
-        step.status = 'completed'
-      } else if (index === 2) {
-        step.status = 'in-progress'
-      } else {
-        step.status = 'pending'
-      }
-    })
+    // Replace entire path with new generated data (simulated)
+    const courseId = route.query.courseId || '1'
+    const newPath = getDefaultPath(courseId).map((step, index) => ({
+      ...step,
+      id: index + 1,
+      status: 'pending', // All reset to pending
+      date: new Date().toISOString().split('T')[0],
+    }))
+    // Set first step as in-progress
+    if (newPath.length > 0) newPath[0].status = 'in-progress'
 
+    learningPath.value = newPath
     ElMessage.success('学习路径重新生成成功！')
   } catch (error) {
     ElMessage.error('生成路径失败')
@@ -220,6 +241,29 @@ const startNextStep = () => {
     // 标记下一个步骤为进行中
     learningPath.value[nextIndex].status = 'in-progress'
     ElMessage.success(`开始学习：${learningPath.value[nextIndex].title}`)
+  }
+}
+
+const goBackStep = () => {
+  // Find the in-progress step (current), mark it as pending
+  const inProgressIdx = learningPath.value.findIndex((s) => s.status === 'in-progress')
+  if (inProgressIdx >= 0) {
+    learningPath.value[inProgressIdx].status = 'pending'
+    // Also revert the previous completed step to in-progress
+    if (inProgressIdx > 0) {
+      learningPath.value[inProgressIdx - 1].status = 'in-progress'
+    }
+    ElMessage.success(`已返回：${learningPath.value[Math.max(0, inProgressIdx - 1)].title}`)
+  } else {
+    // No in-progress step — revert the last completed step
+    const lastCompleted = [...learningPath.value].reverse().findIndex((s) => s.status === 'completed')
+    if (lastCompleted >= 0) {
+      const idx = learningPath.value.length - 1 - lastCompleted
+      learningPath.value[idx].status = 'in-progress'
+      ElMessage.success(`已返回：${learningPath.value[idx].title}`)
+    } else {
+      ElMessage.info('没有可以回退的步骤')
+    }
   }
 }
 </script>
