@@ -20,7 +20,7 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
 @router.post("/login")
 def login(username: str, password: str, db: Session = Depends(get_db)):
     user = crud.get_user_by_username(db, username)
-    if not user or user.password != password:
+    if not user or not crud.verify_password(password, user.password):
         raise ApiException(400, "账号密码错误")
     token = create_token(user.id)
     return success(data={"token": token})
