@@ -6,23 +6,17 @@ from database.connect import engine, Base
 from api import user
 from utils.exception import register_exception
 from utils.logger import log
-from fastapi.middleware.cors import CORSMiddleware
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="教育助手后端")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# 跨域
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:5173",  # Vite dev
+        "http://localhost",        # Docker nginx proxy
+        "http://127.0.0.1:5173",   # Alternative dev
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

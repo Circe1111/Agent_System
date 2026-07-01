@@ -23,7 +23,7 @@ async def chat_stream(
     3.SSE流式分段返回AI回答（打字机效果）
     4.对话全部结束后自动抽取学生画像，更新students表
     """
-    user_id = current_user.id
+    user_id = current_user
     sess_id = req.session_id
     user_text = req.user_content
 

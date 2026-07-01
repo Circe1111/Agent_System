@@ -72,8 +72,8 @@ class EduResource(Base):
 from sqlalchemy import Column, Integer, String, Text, ForeignKey, JSON, DateTime
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
-# Base 在 schemas 文件夹
-from schemas.base import Base
+# 使用统一的 Base 注册（来自 database.connect）
+from database.connect import Base
 
 class Conversation(Base):
     __tablename__ = "conversation"
