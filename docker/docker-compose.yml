@@ -17,6 +17,7 @@ services:
       - LLM_MODEL=${LLM_MODEL:-gpt-4o}
     volumes:
       - data_volume:/app/data
+      - ../.env:/app/.env
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\""]
       interval: 30s
