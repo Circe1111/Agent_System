@@ -6,7 +6,8 @@ from dotenv import load_dotenv
 from rag.document_loader import DocumentLoader, TextSplitter, Document
 from rag.embeddings import EmbeddingClient
 from rag.vector_store import VectorStore, RAGRetriever
-from database import get_db, EduProfile, LearningRecord, EduUser
+from database.connect import get_db
+from database.models import Students, LearningRecords
 from prompt.manager import prompt_manager
 
 # Unified LLM client (OpenAI-compatible)
@@ -86,37 +87,60 @@ def call_llm(messages, temperature=0.7, max_tokens=800, max_retries=3):
 
 
 def get_user_profile(user_id: str):
-    for db in get_db():
-        try:
-            user_profile = db.query(EduProfile).filter(EduProfile.user_id == user_id).first()
-            if user_profile:
+    db = next(get_db())
+    try:
+        user_profile = db.query(Students).filter(Students.id == user_id).first()
+        if user_profile:
+            profile = {}
+            if user_profile.name:
+                profile["姓名"] = user_profile.name
+            if user_profile.major:
+                profile["专业"] = user_profile.major
+            if user_profile.knowledge_level:
+                profile["知识基础"] = user_profile.knowledge_level
+            if user_profile.learning_preference:
+                profile["学习偏好"] = user_profile.learning_preference
+            if user_profile.weak_knowledge:
+                profile["薄弱知识"] = user_profile.weak_knowledge
+            if user_profile.study_goal:
+                profile["学习目标"] = user_profile.study_goal
+            if user_profile.study_time:
+                profile["学习时间"] = user_profile.study_time
+            if user_profile.course:
+                profile["课程"] = user_profile.course
+            if user_profile.raw_json:
                 try:
-                    learning_data = json.loads(user_profile.learning_json)
-                    return learning_data
+                    if isinstance(user_profile.raw_json, dict):
+                        profile.update(user_profile.raw_json)
                 except Exception:
-                    return {"薄弱知识": user_profile.weak_points or ""}
-        except Exception as e:
-            print(f">>> 获取用户画像失败: {e}")
+                    pass
+            return profile
+    except Exception as e:
+        print(f">>> 获取用户画像失败: {e}")
+    finally:
+        db.close()
     return {}
 
 
 def get_user_learning_records(user_id: str):
-    for db in get_db():
-        try:
-            records = db.query(LearningRecord).filter(LearningRecord.user_id == user_id).all()
-            result = []
-            for r in records:
-                result.append({
-                    "chapter": r.chapter,
-                    "score": r.score,
-                    "correct_rate": r.correct_rate,
-                    "problems_done": r.problems_done,
-                    "duration_minutes": r.duration_minutes,
-                    "date": str(r.date)
-                })
-            return result
-        except Exception as e:
-            print(f">>> 获取学习记录失败: {e}")
+    db = next(get_db())
+    try:
+        records = db.query(LearningRecords).filter(LearningRecords.user_id == user_id).all()
+        result = []
+        for r in records:
+            result.append({
+                "chapter": r.chapter,
+                "score": r.score,
+                "correct_rate": float(r.correct_rate) if r.correct_rate else 0,
+                "problems_done": r.problems_done,
+                "duration_minutes": r.duration_minutes,
+                "date": str(r.study_date)
+            })
+        return result
+    except Exception as e:
+        print(f">>> 获取学习记录失败: {e}")
+    finally:
+        db.close()
     return []
 
 

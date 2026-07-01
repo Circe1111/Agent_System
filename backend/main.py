@@ -43,6 +43,11 @@ def root():
     return {"msg": "服务正常，访问 /docs"}
 
 
+@app.get("/health")
+def health():
+    return {"status": "ok"}
+
+
 @app.post("/agent/chat/stream")
 async def agent_chat_stream(request: dict):
     """SSE streaming endpoint for the AI agent workflow.
@@ -71,6 +76,4 @@ if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
 
-from api import all_v1_routers
-for r in all_v1_routers:
-    app.include_router(r)
+

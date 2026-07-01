@@ -18,7 +18,7 @@ def format_sse(data: dict) -> str:
     return f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
 
 # 异步流式大模型调用 — 走统一的 OpenAI 兼容接口
-async def chat_stream(messages, temperature=0.7, max_tokens=4096, **_ignored):
+async def _chat_stream_local(messages, temperature=0.7, max_tokens=4096, **_ignored):
     async for token in _llm_chat_stream(
         messages, temperature=temperature, max_tokens=max_tokens
     ):
@@ -42,14 +42,18 @@ async def stream_chat_response(
     try:
         # 获取当前用户已有画像
         student_info = get_user_profile(db=db, user_id=user_id)
-        portrait_context = student_info.model_dump_json() if student_info else "暂无学生学习画像"
+        if student_info:
+            info_dict = {k: v for k, v in student_info.__dict__.items() if not k.startswith("_")}
+            portrait_context = json.dumps(info_dict, ensure_ascii=False, default=str)
+        else:
+            portrait_context = "暂无学生学习画像"
         # 组装大模型上下文
         messages = [
             {"role": "system", "content": f"根据以下学生画像进行个性化答疑：{portrait_context}"},
             {"role": "user", "content": user_msg}
         ]
         # 逐token流式推送
-        async for token in chat_stream(messages):
+        async for token in _chat_stream_local(messages):
             full_ai_reply += token
             yield format_sse({"type": "delta", "content": token})
             await asyncio.sleep(0.005)
