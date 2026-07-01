@@ -1,0 +1,36 @@
+name: Push Base Images To ACR
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'docker_image_pusher/images.txt'
+  workflow_dispatch:
+
+jobs:
+  push-images:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login Aliyun Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.ALIYUN_REGISTRY }}
+          username: ${{ secrets.ALIYUN_REGISTRY_USER }}
+          password: ${{ secrets.ALIYUN_REGISTRY_PASSWORD }}
+
+      - name: Pull & Push Images
+        env:
+          NAMESPACE: ${{ secrets.ALIYUN_NAME_SPACE }}
+        run: |
+          cat docker_image_pusher/images.txt | grep -v '^#' | while read line; do
+            if [[ -n "$line" ]]; then
+              docker pull $line
+              img_name=$(echo $line | cut -d: -f1)
+              img_tag=$(echo $line | cut -d: -f2)
+              short_name=$(echo $img_name | awk -F'/' '{print $NF}')
+              docker tag $line ${{ secrets.ALIYUN_REGISTRY }}/$NAMESPACE/$short_name:$img_tag
+              docker push ${{ secrets.ALIYUN_REGISTRY }}/$NAMESPACE/$short_name:$img_tag
+            fi
+          done
