@@ -33,6 +33,11 @@ const handleLogout = () => {
   router.push('/login')
   ElMessage.success('已退出登录')
 }
+
+const handleCommand = (cmd) => {
+  if (cmd === 'settings') router.push('/settings')
+  else if (cmd === 'logout') handleLogout()
+}
 </script>
 
 <template>
@@ -57,7 +62,7 @@ const handleLogout = () => {
         <el-dropdown
           v-if="isAuthenticated"
           trigger="click"
-          @command="(cmd) => cmd === 'logout' && handleLogout()"
+          @command="handleCommand"
         >
           <div class="user-menu-trigger">
             <el-avatar :size="32" :src="userAvatar" class="nav-avatar">{{
@@ -73,6 +78,7 @@ const handleLogout = () => {
               <el-dropdown-item command="profile" @click="router.push('/profile')"
                 >个人中心</el-dropdown-item
               >
+              <el-dropdown-item command="settings">设置</el-dropdown-item>
               <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
             </el-dropdown-menu>
           </template>
