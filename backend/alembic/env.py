@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 # 把backend根目录加入导包搜索路径
@@ -18,6 +19,12 @@ config = context.config
 # This line sets up loggers basically.
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
+
+# Override sqlalchemy.url with DATABASE_URL from environment
+# (allows switching between MySQL prod and SQLite dev via env var)
+database_url = os.environ.get("DATABASE_URL")
+if database_url:
+    config.set_main_option("sqlalchemy.url", database_url)
 
 # add your model's MetaData object here
 # for 'autogenerate' support
