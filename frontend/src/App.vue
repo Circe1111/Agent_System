@@ -53,7 +53,7 @@ const handleCommand = (cmd) => {
         <router-link to="/chat" class="nav-link">AI对话</router-link>
         <router-link to="/path" class="nav-link">学习路径</router-link>
         <router-link to="/resources" class="nav-link">学习资源</router-link>
-        <router-link to="/user-profile" class="nav-link">用户画像</router-link>
+        <router-link to="/user-profile" class="nav-link">偏好</router-link>
         <router-link v-if="isAdmin" to="/admin" class="nav-link">管理后台</router-link>
       </nav>
 
@@ -95,7 +95,7 @@ const handleCommand = (cmd) => {
 <style scoped>
 .app-shell {
   min-height: 100vh;
-  background: #f7f8fc;
+  background: var(--bg-page, #fafcfe);
 }
 
 .top-nav {
@@ -103,9 +103,9 @@ const handleCommand = (cmd) => {
   align-items: center;
   justify-content: space-between;
   padding: 14px 24px;
-  background: linear-gradient(90deg, #1a365d 0%, #2b6cb0 100%);
-  color: #fff;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+  background: linear-gradient(135deg, #a8d8ea 0%, #b5ead7 100%);
+  color: var(--text-primary, #5a7d9a);
+  box-shadow: 0 2px 16px rgba(168, 216, 234, 0.15);
 }
 
 .brand {
@@ -115,6 +115,7 @@ const handleCommand = (cmd) => {
   font-size: 1.1rem;
   font-weight: bold;
   cursor: pointer;
+  color: var(--text-primary, #5a7d9a);
 }
 
 .brand-icon {
@@ -124,7 +125,8 @@ const handleCommand = (cmd) => {
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.6);
+  color: #5a7d9a;
 }
 
 .nav-links {
@@ -135,18 +137,20 @@ const handleCommand = (cmd) => {
 
 .nav-link,
 .login-link {
-  color: #e2e8f0;
+  color: #7a9db5;
   text-decoration: none;
   font-size: 0.95rem;
+  font-weight: 500;
+  transition: color 0.2s ease;
 }
 
 .nav-link:hover,
 .login-link:hover {
-  color: #fff;
+  color: #5a7d9a;
 }
 
 .nav-link.router-link-active {
-  color: #fff;
+  color: #5a7d9a;
   font-weight: bold;
 }
 
@@ -162,12 +166,12 @@ const handleCommand = (cmd) => {
   gap: 10px;
   padding: 4px 8px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.6);
   cursor: pointer;
 }
 
 .nav-avatar {
-  background: linear-gradient(135deg, #63b3ed, #3182ce);
+  background: linear-gradient(135deg, #a8d8ea, #b5ead7);
 }
 
 .user-meta {
@@ -179,15 +183,17 @@ const handleCommand = (cmd) => {
 .user-name {
   font-size: 0.92rem;
   font-weight: 600;
+  color: #5a7d9a;
 }
 
 .user-role {
   font-size: 0.75rem;
-  color: #e2e8f0;
+  color: #8fa4b8;
 }
 
 .page-content {
   min-height: calc(100vh - 64px);
+  background: var(--bg-page, #fafcfe);
 }
 
 @media (max-width: 900px) {
