@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { login, getUserInfo } from '@/api/api'
+import { login, register, getUserInfo } from '@/api/api'
 import router from '@/router'
 
 export const useUserStore = defineStore('user', {
@@ -66,6 +66,15 @@ export const useUserStore = defineStore('user', {
         return Promise.resolve(res)
       } catch (error) {
         return Promise.reject(error)
+      }
+    },
+
+    // ===== 注册方法 =====
+    async register(username, password, nickname) {
+      const res = await register(username, password, nickname || '')
+      if (res.data.code === 200) {
+        // Auto-login after successful registration
+        await this.login({ username, password })
       }
     },
 
