@@ -2,6 +2,16 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import json
+import sys
+import os
+
+# Ensure project root is on sys.path so local `api` package imports work
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+BACKEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))
+if BACKEND_DIR not in sys.path:
+    sys.path.insert(0, BACKEND_DIR)
 
 from api.portrait_router import router as portrait_router
 from api.conversation_router import router as conv_router
