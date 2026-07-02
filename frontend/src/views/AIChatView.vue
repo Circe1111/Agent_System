@@ -85,11 +85,16 @@ const suggestions = [
   '推荐一些适合初学者的学习资源',
 ]
 
-// 渲染内容（支持Markdown）
+// 渲染内容（支持Markdown和URL超链接）
 const renderContent = (message) => {
   if (!message?.content) return ''
   const escapeHtml = (value) => value.replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]))
   let content = escapeHtml(message.content)
+  // 将URL转换为超链接
+  const urlRegex = /https?:\/\/[^\s<>"']+/g
+  content = content.replace(urlRegex, (url) => {
+    return `<a href="${url}" target="_blank" style="color: #3182ce; text-decoration: underline;">${url}</a>`
+  })
   content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
   content = content.replace(/\*(.*?)\*/g, '<em>$1</em>')
   content = content.replace(/`(.*?)`/g, '<code>$1</code>')

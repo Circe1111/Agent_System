@@ -16,6 +16,7 @@ if BACKEND_DIR not in sys.path:
 from api.portrait_router import router as portrait_router
 from api.conversation_router import router as conv_router
 from api.v1.chat_stream_router import router as chat_stream_router
+from api.resources_router import router as resources_router
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -62,6 +63,7 @@ app.include_router(portrait_router)
 app.include_router(chat_stream_router)
 from api.settings_router import router as settings_router
 app.include_router(settings_router)
+app.include_router(resources_router)
 
 @app.get("/")
 def root():
@@ -100,5 +102,3 @@ async def agent_chat_stream(request: dict, current_user: int = Depends(get_curre
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
-
-

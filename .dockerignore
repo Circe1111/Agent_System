@@ -1,14 +1,28 @@
-.git/
-.gitignore
-.codegraph/
-.omo/
+# Python
 __pycache__/
-*.pyc
-.env
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+*.db
+
+# Node
 node_modules/
 frontend/node_modules/
-backend/__pycache__/
-**/venv/
-**/*.db
-*.log
-*.tar.gz
+frontend/dist/
+
+# IDE
+.vscode/
+.idea/
+
+# Git
+.git/
+.gitignore
+
+# Environment
+.env.example
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore

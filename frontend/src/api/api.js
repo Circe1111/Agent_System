@@ -241,7 +241,22 @@ export const sendAIChatMessage = (message, context = {}) => {
 
 // 获取学习资源
 export const getLearningResources = (filters = {}) => {
-  return api.get('/resources', { params: filters })
+  return api.get('/resources/courses', { params: filters })
+}
+
+// 获取课程文件列表
+export const getCourseFiles = (courseName) => {
+  return api.get(`/resources/courses/${encodeURIComponent(courseName)}/files`)
+}
+
+// 下载文件
+export const downloadFile = (course, path) => {
+  return `${API_BASE_URL}/resources/download?course=${encodeURIComponent(course)}&path=${encodeURIComponent(path)}`
+}
+
+// 预览文件
+export const previewFile = (course, path) => {
+  return api.get('/resources/preview', { params: { course, path } })
 }
 
 // 生成学习路径

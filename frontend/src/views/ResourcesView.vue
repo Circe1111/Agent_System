@@ -5,42 +5,16 @@
         <div class="header">
           <div>
             <h2>学习资源中心</h2>
-            <p class="subtitle">选择课程后查看对应资源，文件可预览或下载</p>
+            <p class="subtitle">按知识库目录结构分组展示，点击分组展开查看文件</p>
           </div>
           <div class="filters">
-            <el-select
-              v-model="filterType"
-              placeholder="资源类型"
-              @change="applyFilters"
-              style="margin-right: 10px"
-            >
-              <el-option label="全部" value="" />
-              <el-option label="文档" value="document" />
-              <el-option label="视频" value="video" />
-              <el-option label="代码" value="code" />
-              <el-option label="练习" value="exercise" />
-            </el-select>
-
-            <el-select
-              v-model="filterDifficulty"
-              placeholder="难度等级"
-              @change="applyFilters"
-              style="margin-right: 10px"
-            >
-              <el-option label="全部" value="" />
-              <el-option label="初级" value="beginner" />
-              <el-option label="中级" value="intermediate" />
-              <el-option label="高级" value="advanced" />
-            </el-select>
-
             <el-input
               v-model="searchKeyword"
-              placeholder="搜索资源..."
+              placeholder="搜索文件..."
               @input="applyFilters"
-              style="width: 200px; margin-right: 10px"
+              style="width: 220px; margin-right: 10px"
             />
-
-            <el-button type="primary" @click="refreshResources">刷新</el-button>
+            <el-button type="primary" @click="refreshResources" :loading="loading">刷新</el-button>
           </div>
         </div>
       </template>
@@ -48,13 +22,14 @@
       <div class="content-layout">
         <div class="courses-panel">
           <h3>课程列表</h3>
-          <div class="course-list">
+          <el-skeleton v-if="loadingCourses" :rows="4" animated />
+          <div v-else class="course-list">
             <div
               v-for="course in courses"
               :key="course.id"
               class="course-item"
-              :class="{ active: selectedCourseId === course.id }"
-              @click="selectCourse(course.id)"
+              :class="{ active: selectedCourseDir === course.dir_name }"
+              @click="selectCourse(course)"
             >
               <div class="course-title-row">
                 <h4>{{ course.title }}</h4>
@@ -68,7 +43,7 @@
               <p>{{ course.description }}</p>
               <div class="course-meta">
                 <span>{{ course.category }}</span>
-                <span>{{ course.resourceCount }} 个资源</span>
+                <span>{{ course.resource_count }} 个文件</span>
               </div>
             </div>
           </div>
@@ -81,559 +56,299 @@
             <div class="course-tags">
               <el-tag type="info" size="small">{{ selectedCourse.category }}</el-tag>
               <el-tag type="primary" size="small">{{ selectedCourse.level }}</el-tag>
+              <el-tag type="success" size="small">{{ totalFileCount }} 个文件</el-tag>
+            </div>
+            <div v-if="selectedCourse.bilibili_url" class="bilibili-link">
+              <el-icon :size="16" color="#fb7299"><VideoPlay /></el-icon>
+              <span>B站推荐教程：</span>
+              <a :href="selectedCourse.bilibili_url" target="_blank" rel="noopener">{{ selectedCourse.bilibili_title }}</a>
             </div>
           </div>
 
-          <div v-if="filteredResources.length" class="resource-list">
+          <el-skeleton v-if="loadingFiles" :rows="5" animated />
+
+          <div v-else-if="filteredGroups.length" class="group-tree">
             <div
-              v-for="resource in filteredResources"
-              :key="resource.id"
-              class="resource-item"
+              v-for="group in filteredGroups"
+              :key="group.name"
+              class="group-panel"
             >
-              <div class="resource-main">
-                <div class="resource-icon" :class="getFileTypeClass(resource.fileType)">
-                  <span>{{ getFileTypeIcon(resource.fileType) }}</span>
-                </div>
-                <div class="resource-info">
-                  <h4>{{ resource.title }}</h4>
-                  <p>{{ resource.description }}</p>
+              <div class="group-header" @click="toggleGroup(group.name)">
+                <div class="group-header-left">
+                  <el-icon class="group-arrow" :class="{ expanded: expandedGroups[group.name] }">
+                    <ArrowRight />
+                  </el-icon>
+                  <span class="group-name">{{ group.name }}</span>
+                  <el-tag size="small" type="info">{{ group.file_count }} 个文件</el-tag>
                 </div>
               </div>
 
-              <div class="resource-actions">
-                <el-button type="primary" size="small" @click="viewResource(resource)">预览</el-button>
-                <el-button type="info" size="small" @click="downloadResource(resource)">下载</el-button>
+              <div class="group-body" v-show="expandedGroups[group.name]">
+                <div
+                  v-for="child in group.children"
+                  :key="group.name + '-' + (child.name || 'root')"
+                  class="sub-group"
+                >
+                  <div
+                    v-if="child.name"
+                    class="sub-group-header"
+                    @click="toggleSubGroup(group.name + '/' + child.name)"
+                  >
+                    <el-icon class="sub-arrow" :class="{ expanded: expandedSubGroups[group.name + '/' + child.name] }">
+                      <ArrowRight />
+                    </el-icon>
+                    <span class="sub-group-name">{{ child.name }}</span>
+                    <el-tag size="small" class="tag-light">{{ child.file_count }} 个文件</el-tag>
+                  </div>
+
+                  <div
+                    class="sub-group-files"
+                    :class="{ 'no-header': !child.name }"
+                    v-show="!child.name || expandedSubGroups[group.name + '/' + child.name]"
+                  >
+                    <div
+                      v-for="file in child.files"
+                      :key="file.relative_path"
+                      class="resource-item"
+                    >
+                      <div class="resource-main">
+                        <div class="resource-icon" :class="'icon-' + file.file_type">
+                          <span>{{ file.file_type.toUpperCase() }}</span>
+                        </div>
+                        <div class="resource-info">
+                          <h4>{{ file.title }}</h4>
+                          <p>{{ file.type_label }} · {{ file.size_display }}</p>
+                        </div>
+                      </div>
+
+                      <div class="resource-actions">
+                        <el-button type="primary" size="small" @click="viewResource(file)">预览</el-button>
+                        <el-button type="info" size="small" @click="downloadResource(file)">下载</el-button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          <el-empty v-else description="当前课程下暂无匹配资源" />
+          <el-empty v-else description="当前课程下暂无匹配文件" />
         </div>
       </div>
     </el-card>
 
     <el-dialog
       v-model="previewVisible"
-      :title="previewResource?.title || '文件预览'"
+      :title="previewFileData?.title || '文件预览'"
       width="80%"
       top="3vh"
       destroy-on-close
     >
       <div class="preview-box">
         <div class="preview-header">
-          <el-tag :type="getFileTypeTag(previewResource?.fileType)" size="small">
-            {{ getFileTypeName(previewResource?.fileType) }}
+          <el-tag :type="getFileTypeTag(previewFileData?.file_type)" size="small">
+            {{ previewFileData?.type_label }}
           </el-tag>
-          <span class="preview-meta">{{ previewResource?.description }}</span>
+          <span class="preview-meta">{{ previewFileData?.size_display }}</span>
+          <span v-if="previewLoading" class="preview-meta">加载中...</span>
         </div>
-        <iframe
-          :srcdoc="previewContent"
-          class="preview-frame"
-          sandbox="allow-same-origin"
-          title="文件预览"
-        />
+        <div v-if="previewLoading" style="text-align:center; padding: 60px;">
+          <el-icon class="is-loading" :size="32"><Loading /></el-icon>
+          <p style="margin-top: 12px; color: #718096;">正在加载预览内容...</p>
+        </div>
+        <div v-else-if="previewError" class="preview-error">
+          <el-icon :size="48" color="#e53e3e"><WarningFilled /></el-icon>
+          <p>{{ previewError }}</p>
+          <el-button type="primary" size="small" @click="downloadResource(previewFileData)">直接下载查看</el-button>
+        </div>
+        <pre v-else-if="previewContent" class="preview-text">{{ previewContent }}</pre>
+        <div v-else class="preview-empty">
+          <el-icon :size="48" color="#cbd5e0"><Document /></el-icon>
+          <p>暂无预览内容</p>
+        </div>
       </div>
       <template #footer>
         <el-button @click="previewVisible = false">关闭</el-button>
-        <el-button type="primary" @click="downloadResource(previewResource)">下载</el-button>
+        <el-button type="primary" @click="downloadResource(previewFileData)">下载</el-button>
       </template>
     </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { getLearningResources, getCourseFiles, downloadFile, previewFile } from '@/api/api'
+import { Loading, WarningFilled, Document, ArrowRight, VideoPlay } from '@element-plus/icons-vue'
 
-const courses = ref([
-  {
-    id: 1,
-    title: 'Python基础',
-    description: '适合零基础用户，帮助你快速掌握 Python 的核心语法与实践能力。',
-    category: '编程',
-    level: '初级',
-    resourceCount: 4,
-    resources: [
-      {
-        id: 101,
-        title: 'Python 基础课件.pdf',
-        type: 'document',
-        fileType: 'pdf',
-        description: '包含基础语法、函数与文件操作的 PDF 课件。',
-        difficulty: 'beginner',
-        level: '初级',
-        duration: 25,
-        rating: 4.6,
-        tags: ['Python', '基础', '课件'],
-        isFavorite: false,
-        previewText: '这是 Python 基础课件的预览内容，后端接口准备好后可以直接替换为真实 PDF/文档内容。',
-      },
-      {
-        id: 102,
-        title: 'Python 练习题.doc',
-        type: 'exercise',
-        fileType: 'doc',
-        description: '适合巩固知识点的 Word 练习题。',
-        difficulty: 'beginner',
-        level: '初级',
-        duration: 20,
-        rating: 4.3,
-        tags: ['Python', '练习', 'Word'],
-        isFavorite: false,
-        previewText: '练习题内容将从后端接口返回，当前先展示模拟内容。',
-      },
-      {
-        id: 103,
-        title: 'Python 速查笔记.txt',
-        type: 'document',
-        fileType: 'text',
-        description: '用于查阅常用语法和函数的文本笔记。',
-        difficulty: 'beginner',
-        level: '初级',
-        duration: 10,
-        rating: 4.4,
-        tags: ['Python', '速查', '笔记'],
-        isFavorite: true,
-        previewText: 'print("Hello World")\nfor i in range(3):\n    print(i)',
-      },
-      {
-        id: 104,
-        title: 'Python 学习路线.ppt',
-        type: 'document',
-        fileType: 'ppt',
-        description: '一份带有学习路线和重点模块的 PPT。',
-        difficulty: 'beginner',
-        level: '初级',
-        duration: 15,
-        rating: 4.7,
-        tags: ['Python', '路线图', 'PPT'],
-        isFavorite: false,
-        previewText: '本节介绍 Python 学习路径：基础语法 → 数据结构 → 文件操作 → 框架应用。',
-      },
-    ],
-  },
-  {
-    id: 2,
-    title: '计算机网络',
-    description: '重点讲解网络协议、TCP/IP 和常见网络问题分析。',
-    category: '基础课',
-    level: '中级',
-    resourceCount: 3,
-    resources: [
-      {
-        id: 201,
-        title: '网络协议总结.pdf',
-        type: 'document',
-        fileType: 'pdf',
-        description: '网络协议和数据传输的核心要点总结。',
-        difficulty: 'intermediate',
-        level: '中级',
-        duration: 30,
-        rating: 4.5,
-        tags: ['网络', '协议', 'PDF'],
-        isFavorite: false,
-        previewText: 'TCP / IP、HTTP / HTTPS、DNS、端口和路由相关知识摘要。',
-      },
-      {
-        id: 202,
-        title: '网络实验指导.docx',
-        type: 'exercise',
-        fileType: 'doc',
-        description: '课堂实验步骤和思考题。',
-        difficulty: 'intermediate',
-        level: '中级',
-        duration: 25,
-        rating: 4.2,
-        tags: ['实验', '网络', '文档'],
-        isFavorite: false,
-        previewText: '实验一：查看本机 IP 配置；实验二：利用 ping 和 tracert 排查问题。',
-      },
-      {
-        id: 203,
-        title: '网络拓扑图.ppt',
-        type: 'document',
-        fileType: 'ppt',
-        description: '网络结构与拓扑展示。',
-        difficulty: 'intermediate',
-        level: '中级',
-        duration: 20,
-        rating: 4.6,
-        tags: ['拓扑', 'PPT', '网络'],
-        isFavorite: true,
-        previewText: '本节展示局域网、交换机、路由器和外部网络之间的连接关系。',
-      },
-    ],
-  },
-  {
-    id: 3,
-    title: '编译原理',
-    description: '系统学习词法分析、语法分析、语义分析和代码生成。',
-    category: '专业课',
-    level: '高级',
-    resourceCount: 3,
-    resources: [
-      {
-        id: 301,
-        title: '编译原理导论.pdf',
-        type: 'document',
-        fileType: 'pdf',
-        description: '编译原理课程整体框架与核心概念。',
-        difficulty: 'advanced',
-        level: '高级',
-        duration: 35,
-        rating: 4.7,
-        tags: ['编译', '理论', 'PDF'],
-        isFavorite: false,
-        previewText: '编译过程包括词法分析、语法分析、语义分析、中间代码生成和目标代码生成。',
-      },
-      {
-        id: 302,
-        title: 'LR(1)分析法.ppt',
-        type: 'document',
-        fileType: 'ppt',
-        description: '介绍 LR(1) 语法分析方法和推导过程。',
-        difficulty: 'advanced',
-        level: '高级',
-        duration: 25,
-        rating: 4.5,
-        tags: ['语法分析', 'LR(1)', 'PPT'],
-        isFavorite: false,
-        previewText: '通过项集构造和状态转移表理解 LR(1) 的分析流程。',
-      },
-      {
-        id: 303,
-        title: '编译实验说明.txt',
-        type: 'exercise',
-        fileType: 'text',
-        description: '编译器实验的步骤说明和注意事项。',
-        difficulty: 'advanced',
-        level: '高级',
-        duration: 20,
-        rating: 4.3,
-        tags: ['实验', '编译', '文本'],
-        isFavorite: true,
-        previewText: '实验要求：实现简单词法分析器，并输出 token 序列。',
-      },
-    ],
-  },
-  {
-    id: 4,
-    title: '人工神经网络',
-    description: '基于神经网络的理论基础、训练方法与实践案例。',
-    category: '人工智能',
-    level: '中级',
-    resourceCount: 3,
-    resources: [
-      {
-        id: 401,
-        title: '神经网络基础.pdf',
-        type: 'document',
-        fileType: 'pdf',
-        description: '介绍感知机、激活函数和多层网络结构。',
-        difficulty: 'intermediate',
-        level: '中级',
-        duration: 30,
-        rating: 4.6,
-        tags: ['神经网络', '基础', 'PDF'],
-        isFavorite: false,
-        previewText: '神经网络由输入层、隐藏层和输出层构成，使用反向传播进行训练。',
-      },
-      {
-        id: 402,
-        title: '训练技巧.doc',
-        type: 'exercise',
-        fileType: 'doc',
-        description: '介绍训练集划分、正则化和优化策略。',
-        difficulty: 'intermediate',
-        level: '中级',
-        duration: 25,
-        rating: 4.4,
-        tags: ['训练', '优化', 'Word'],
-        isFavorite: false,
-        previewText: '学习率、批大小、正则化和早停策略对模型效果有重要影响。',
-      },
-      {
-        id: 403,
-        title: '案例演示.ppt',
-        type: 'document',
-        fileType: 'ppt',
-        description: '展示一个简单的神经网络分类案例。',
-        difficulty: 'intermediate',
-        level: '中级',
-        duration: 20,
-        rating: 4.8,
-        tags: ['案例', 'PPT', '神经网络'],
-        isFavorite: true,
-        previewText: '该案例展示如何用 PyTorch 构建一个手写数字识别模型。',
-      },
-    ],
-  },
-])
-
-const filterType = ref('')
-const filterDifficulty = ref('')
+const courses = ref([])
+const courseGroups = ref([])
+const selectedCourseDir = ref('')
+const selectedCourse = ref({ title: '请选择课程', description: '', category: '', level: '' })
 const searchKeyword = ref('')
-const currentPage = ref(1)
-const pageSize = ref(6)
-const selectedCourseId = ref(courses.value[0].id)
+const loading = ref(false)
+const loadingCourses = ref(false)
+const loadingFiles = ref(false)
+const expandedGroups = ref({})
+const expandedSubGroups = ref({})
 const previewVisible = ref(false)
-const previewResource = ref(null)
+const previewFileData = ref(null)
 const previewContent = ref('')
+const previewLoading = ref(false)
+const previewError = ref('')
 
-const selectedCourse = computed(() => {
-  return courses.value.find((item) => item.id === selectedCourseId.value) || courses.value[0]
+const totalFileCount = computed(() => {
+  return courseGroups.value.reduce((sum, g) => sum + (g.file_count || 0), 0)
 })
 
-const filteredResources = computed(() => {
-  let result = selectedCourse.value.resources || []
+const filteredGroups = computed(() => {
+  if (!searchKeyword.value) return courseGroups.value
 
-  if (filterType.value) {
-    result = result.filter((item) => item.type === filterType.value)
-  }
+  const keyword = searchKeyword.value.toLowerCase()
 
-  if (filterDifficulty.value) {
-    result = result.filter((item) => item.difficulty === filterDifficulty.value)
-  }
+  return courseGroups.value
+    .map((group) => {
+      const matchedChildren = group.children
+        .map((child) => {
+          const matchedFiles = child.files.filter(
+            (f) => f.title.toLowerCase().includes(keyword)
+          )
+          return matchedFiles.length > 0
+            ? { ...child, files: matchedFiles, file_count: matchedFiles.length }
+            : null
+        })
+        .filter(Boolean)
 
-  if (searchKeyword.value) {
-    const keyword = searchKeyword.value.toLowerCase()
-    result = result.filter(
-      (item) =>
-        item.title.toLowerCase().includes(keyword) ||
-        item.description.toLowerCase().includes(keyword) ||
-        item.tags.some((tag) => tag.toLowerCase().includes(keyword)),
-    )
-  }
+      if (matchedChildren.length === 0) return null
 
-  const start = (currentPage.value - 1) * pageSize.value
-  const end = start + pageSize.value
-  return result.slice(start, end)
+      return {
+        ...group,
+        children: matchedChildren,
+        file_count: matchedChildren.reduce((s, c) => s + c.file_count, 0),
+      }
+    })
+    .filter(Boolean)
 })
 
-const selectCourse = (courseId) => {
-  selectedCourseId.value = courseId
-  filterType.value = ''
-  filterDifficulty.value = ''
+const toggleGroup = (name) => {
+  expandedGroups.value[name] = !expandedGroups.value[name]
+}
+
+const toggleSubGroup = (key) => {
+  expandedSubGroups.value[key] = !expandedSubGroups.value[key]
+}
+
+const fetchCourses = async () => {
+  loadingCourses.value = true
+  try {
+    const res = await getLearningResources()
+    const data = res?.data?.data || {}
+    courses.value = (data.courses || []).map((c) => ({ ...c }))
+    if (courses.value.length > 0 && !selectedCourseDir.value) {
+      selectCourse(courses.value[0])
+    }
+  } catch (err) {
+    console.error('获取课程列表失败:', err)
+    ElMessage.warning('无法获取课程列表，请检查后端服务是否启动')
+  } finally {
+    loadingCourses.value = false
+  }
+}
+
+const selectCourse = async (course) => {
+  selectedCourseDir.value = course.dir_name
+  selectedCourse.value = course
   searchKeyword.value = ''
-  currentPage.value = 1
+  expandedGroups.value = {}
+  expandedSubGroups.value = {}
+  await fetchCourseFiles(course.dir_name)
 }
 
-const getResourceTypeTag = (type) => {
-  const types = {
-    document: 'primary',
-    video: 'success',
-    code: 'warning',
-    exercise: 'danger',
+const fetchCourseFiles = async (courseName) => {
+  loadingFiles.value = true
+  courseGroups.value = []
+  try {
+    const res = await getCourseFiles(courseName)
+    const data = res?.data?.data || {}
+    courseGroups.value = data.groups || []
+    // 默认展开所有分组
+    courseGroups.value.forEach((g) => {
+      expandedGroups.value[g.name] = true
+      g.children.forEach((c) => {
+        if (c.name) {
+          expandedSubGroups.value[g.name + '/' + c.name] = true
+        }
+      })
+    })
+  } catch (err) {
+    console.error('获取文件列表失败:', err)
+    ElMessage.error('获取文件列表失败')
+  } finally {
+    loadingFiles.value = false
   }
-  return types[type] || 'info'
 }
 
-const getResourceTypeName = (type) => {
-  const names = {
-    document: '文档',
-    video: '视频',
-    code: '代码',
-    exercise: '练习',
-  }
-  return names[type] || type
-}
-
-const getFileTypeName = (fileType) => {
-  const names = {
-    pdf: 'PDF',
-    doc: 'Word',
-    ppt: 'PPT',
-    text: '文本',
-  }
-  return names[fileType] || fileType || '文件'
-}
-
-const getFileTypeIcon = (fileType) => {
-  const icons = {
-    pdf: 'PDF',
-    doc: 'DOC',
-    ppt: 'PPT',
-    text: 'TXT',
-  }
-  return icons[fileType] || 'FILE'
-}
-
-const getFileTypeClass = (fileType) => {
-  const classes = {
-    pdf: 'icon-pdf',
-    doc: 'icon-doc',
-    ppt: 'icon-ppt',
-    text: 'icon-text',
-  }
-  return classes[fileType] || 'icon-file'
-}
-
-const getResourceDifficultyTag = (difficulty) => {
-  const difficulties = {
-    beginner: 'success',
-    intermediate: 'warning',
-    advanced: 'danger',
-  }
-  return difficulties[difficulty] || 'info'
-}
-
-const applyFilters = () => {
-  currentPage.value = 1
-}
-
-const refreshResources = () => {
-  filterType.value = ''
-  filterDifficulty.value = ''
-  searchKeyword.value = ''
-  currentPage.value = 1
-  ElMessage.success('已刷新当前课程资源')
-}
-
-const viewResource = (resource) => {
-  // Check if resource has an external URL
-  if (resource.url && resource.url.startsWith('http')) {
-    window.open(resource.url, '_blank')
-    return
-  }
-
-  previewResource.value = resource
-  previewContent.value = buildPreviewContent(resource)
+const viewResource = async (file) => {
+  previewFileData.value = file
   previewVisible.value = true
-  ElMessage.success(`正在预览：${resource.title}`)
-}
+  previewContent.value = ''
+  previewError.value = ''
+  previewLoading.value = true
 
-const buildPreviewContent = (resource) => {
-  const title = resource.title || '未命名资源'
-  const body = resource.previewText || '暂无预览内容'
-  const fileType = resource.fileType || 'text'
-
-  if (fileType === 'pdf') {
-    // Generate a styled document that looks like a PDF page
-    return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: Georgia, 'Times New Roman', serif;
-      padding: 60px 50px;
-      color: #333;
-      background: #fff;
-      line-height: 1.8;
-      max-width: 800px;
-      margin: 0 auto;
+  if (file.file_type === 'text') {
+    try {
+      const res = await previewFile(selectedCourseDir.value, file.relative_path)
+      const data = res?.data?.data || {}
+      if (res?.data?.code === 200 && data.content) {
+        previewContent.value = data.content
+      } else {
+        previewError.value = data?.error || '预览失败，请下载后查看'
+      }
+    } catch (err) {
+      previewError.value = '预览请求失败，请下载后查看'
     }
-    h1 { font-size: 1.8rem; color: #2c5282; margin-bottom: 24px; border-bottom: 2px solid #e2e8f0; padding-bottom: 12px; }
-    p { margin-bottom: 14px; font-size: 1rem; }
-    .meta { color: #a0aec0; font-size: 0.85rem; margin-bottom: 30px; }
-  </style>
-</head>
-<body>
-  <h1>${escapeHtml(title)}</h1>
-  <div class="meta">${escapeHtml(resource.description || '')} | ${resource.duration || 0} 分钟</div>
-  <p>${escapeHtml(body)}</p>
-  <p style="margin-top:30px; color:#a0aec0; font-style:italic">—— 此为模拟预览，接入后端后可展示真实 PDF 文件 ——</p>
-</body>
-</html>`
+  } else {
+    previewError.value = `${file.type_label}文件不支持在线预览，请点击下载按钮下载后查看`
   }
-
-  if (fileType === 'doc' || fileType === 'ppt') {
-    // Generate a simple document-like preview
-    return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Segoe UI', Georgia, serif;
-      padding: 50px 45px;
-      color: #444;
-      background: #fff;
-      line-height: 1.7;
-      max-width: 800px;
-      margin: 0 auto;
-    }
-    h1 { font-size: 1.6rem; color: #2d3748; margin-bottom: 20px; }
-    p { margin-bottom: 12px; }
-    .badge { display: inline-block; background: #edf2f7; color: #4a5568; padding: 4px 12px; border-radius: 6px; font-size: 0.8rem; margin-bottom: 20px; }
-  </style>
-</head>
-<body>
-  <h1>${escapeHtml(title)}</h1>
-  <div class="badge">${fileType.toUpperCase()} 文档</div>
-  <p>${escapeHtml(body)}</p>
-  <p style="margin-top: 30px; color:#cbd5e0; font-size:0.85rem">—— ${fileType === 'doc' ? 'Word' : 'PPT'} 文档模拟预览，后端接入后可替换为 Office Online 查看器或真实文件 ——</p>
-</body>
-</html>`
-  }
-
-  // Text — show as preformatted
-  return `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-      padding: 30px;
-      color: #2d3748;
-      background: #f7fafc;
-      line-height: 1.6;
-      white-space: pre-wrap;
-      font-size: 0.9rem;
-    }
-  </style>
-</head>
-<body>${escapeHtml(body)}</body>
-</html>`
+  previewLoading.value = false
 }
 
-// HTML escape helper
-const escapeHtml = (str) => {
-  if (!str) return ''
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-}
-
-const downloadResource = (resource) => {
-  if (!resource) return
-
-  const fileName = resource.title
-  const fileType = resource.fileType || 'txt'
-
-  // For text files, download as .txt
-  if (fileType === 'text') {
-    const content = resource.previewText || `资源名称：${resource.title}`
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
-    triggerDownload(blob, `${fileName}.txt`)
-    return
-  }
-
-  // For PDF/DOC/PPT mock: download HTML preview as .html
-  const htmlContent = buildPreviewContent(resource)
-  const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' })
-  triggerDownload(blob, `${fileName}.html`)
-  ElMessage.success(`已下载：${resource.title}`)
-}
-
-const triggerDownload = (blob, fileName) => {
+const downloadResource = (file) => {
+  if (!file || !selectedCourseDir.value) return
+  const url = downloadFile(selectedCourseDir.value, file.relative_path)
   const link = document.createElement('a')
-  link.href = URL.createObjectURL(blob)
-  link.download = fileName
+  link.href = url
+  link.download = file.title
   link.click()
-  URL.revokeObjectURL(link.href)
+  ElMessage.success(`开始下载：${file.title}`)
 }
 
-const handleSizeChange = (val) => {
-  pageSize.value = val
-  currentPage.value = 1
+const applyFilters = () => {}
+
+const refreshResources = async () => {
+  searchKeyword.value = ''
+  loading.value = true
+  await fetchCourses()
+  if (selectedCourseDir.value) {
+    await fetchCourseFiles(selectedCourseDir.value)
+  }
+  loading.value = false
+  ElMessage.success('已刷新课程资源')
 }
 
-const handleCurrentChange = (val) => {
-  currentPage.value = val
+const getFileTypeTag = (fileType) => {
+  const tags = {
+    pdf: 'danger',
+    doc: 'warning',
+    ppt: 'success',
+    text: '',
+  }
+  return tags[fileType] || 'info'
 }
+
+onMounted(() => {
+  fetchCourses()
+})
 </script>
 
 <style scoped>
@@ -646,6 +361,7 @@ const handleCurrentChange = (val) => {
   justify-content: space-between;
   align-items: center;
   gap: 16px;
+  flex-wrap: wrap;
 }
 
 .subtitle {
@@ -705,35 +421,40 @@ const handleCurrentChange = (val) => {
 
 .course-title-row h4 {
   margin: 0;
-  font-size: 1rem;
+  font-size: 15px;
   color: #1a365d;
 }
 
 .course-item p {
-  margin: 8px 0;
-  color: #4a5568;
-  font-size: 0.92rem;
+  margin: 6px 0;
+  font-size: 13px;
+  color: #718096;
+  line-height: 1.5;
 }
 
 .course-meta {
   display: flex;
   justify-content: space-between;
-  color: #718096;
-  font-size: 0.85rem;
+  font-size: 12px;
+  color: #a0aec0;
 }
 
 .course-info {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .course-info h3 {
-  margin: 0 0 8px;
+  margin: 0 0 6px;
+  font-size: 18px;
   color: #1a365d;
 }
 
 .course-info p {
   margin: 0 0 10px;
-  color: #4a5568;
+  color: #718096;
+  font-size: 14px;
 }
 
 .course-tags {
@@ -741,137 +462,262 @@ const handleCurrentChange = (val) => {
   gap: 8px;
 }
 
-.resource-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.bilibili-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
+  padding: 8px 14px;
+  background: #fff5f7;
+  border: 1px solid #fcd5e0;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #4a5568;
 }
 
-.resource-item {
+.bilibili-link a {
+  color: #fb7299;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.bilibili-link a:hover {
+  text-decoration: underline;
+  color: #e85d8a;
+}
+
+/* 分组树 */
+.group-tree {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  padding: 14px 16px;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.group-panel {
   border: 1px solid #e2e8f0;
   border-radius: 10px;
   background: #fff;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  transition: all 0.2s ease;
+  overflow: hidden;
 }
 
-.resource-item:hover {
-  transform: translateY(-2px);
-  border-color: #409eff;
-  box-shadow: 0 8px 18px rgba(64, 158, 255, 0.12);
-}
-
-.resource-main {
+.group-header {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  flex: 1;
+  padding: 12px 16px;
+  cursor: pointer;
+  background: #edf2f7;
+  transition: background 0.2s;
+  user-select: none;
 }
 
-.resource-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-weight: 700;
-  font-size: 0.85rem;
-  letter-spacing: 0.04em;
-  flex-shrink: 0;
-  background: linear-gradient(135deg, #94a3b8, #64748b);
+.group-header:hover {
+  background: #e2e8f0;
 }
 
-.resource-icon.icon-pdf {
-  background: linear-gradient(135deg, #f87171, #ef4444);
-}
-
-.resource-icon.icon-doc {
-  background: linear-gradient(135deg, #60a5fa, #2563eb);
-}
-
-.resource-icon.icon-ppt {
-  background: linear-gradient(135deg, #fbbf24, #f59e0b);
-}
-
-.resource-icon.icon-text {
-  background: linear-gradient(135deg, #34d399, #10b981);
-}
-
-.resource-info h4 {
-  margin: 0 0 4px;
-  color: #1a365d;
-  font-size: 1rem;
-}
-
-.resource-info p {
-  margin: 0;
-  color: #4a5568;
-  font-size: 0.92rem;
-  line-height: 1.4;
-}
-
-.resource-actions {
-  display: flex;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.resource-actions .el-button {
-  transition: all 0.2s ease;
-}
-
-.preview-box {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.preview-header {
+.group-header-left {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-.preview-meta {
-  color: #4a5568;
+.group-arrow {
+  transition: transform 0.2s;
+  font-size: 14px;
+  color: #718096;
 }
 
-.preview-content {
-  background: #f8fafc;
-  border-radius: 8px;
-  padding: 14px;
-  min-height: 180px;
+.group-arrow.expanded {
+  transform: rotate(90deg);
+}
+
+.group-name {
+  font-weight: 600;
+  font-size: 15px;
   color: #2d3748;
 }
 
-.preview-hint {
+.group-body {
+  padding: 0;
+}
+
+/* 子分组 */
+.sub-group {
+  border-bottom: 1px solid #edf2f7;
+}
+
+.sub-group:last-child {
+  border-bottom: none;
+}
+
+.sub-group-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px 10px 32px;
+  cursor: pointer;
+  background: #f7fafc;
+  transition: background 0.2s;
+  user-select: none;
+}
+
+.sub-group-header:hover {
+  background: #edf2f7;
+}
+
+.sub-arrow {
+  transition: transform 0.2s;
+  font-size: 12px;
+  color: #a0aec0;
+}
+
+.sub-arrow.expanded {
+  transform: rotate(90deg);
+}
+
+.sub-group-name {
+  font-size: 14px;
+  color: #4a5568;
+  flex: 1;
+}
+
+.tag-light {
+  background: #edf2f7 !important;
+  border-color: #e2e8f0 !important;
+  color: #718096 !important;
+}
+
+.sub-group-files {
+  padding: 0 16px 8px 48px;
+}
+
+.sub-group-files.no-header {
+  padding: 8px 16px 8px 32px;
+}
+
+/* 文件项 */
+.resource-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: #f7fafc;
+  border-radius: 8px;
+  border: 1px solid #edf2f7;
+  margin-bottom: 6px;
+  transition: all 0.2s;
+}
+
+.resource-item:last-child {
+  margin-bottom: 0;
+}
+
+.resource-item:hover {
+  background: #ebf4ff;
+  border-color: #bee3f8;
+}
+
+.resource-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.resource-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: white;
+  flex-shrink: 0;
+}
+
+.icon-pdf {
+  background: #e53e3e;
+}
+
+.icon-doc {
+  background: #3182ce;
+}
+
+.icon-ppt {
+  background: #38a169;
+}
+
+.icon-text {
+  background: #718096;
+}
+
+.resource-info h4 {
+  margin: 0 0 2px;
+  font-size: 13px;
+  color: #1a365d;
+  word-break: break-all;
+}
+
+.resource-info p {
+  margin: 0;
+  font-size: 11px;
+  color: #a0aec0;
+}
+
+.resource-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* 预览弹窗 */
+.preview-box {
+  min-height: 300px;
+  max-height: 70vh;
+  overflow: auto;
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.preview-meta {
+  color: #a0aec0;
+  font-size: 13px;
+}
+
+.preview-text {
+  background: #f7fafc;
+  padding: 20px;
+  border-radius: 8px;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #2d3748;
+  max-height: 60vh;
+  overflow: auto;
+}
+
+.preview-error,
+.preview-empty {
+  text-align: center;
+  padding: 60px 20px;
   color: #718096;
-  margin-top: 8px;
 }
 
-.preview-frame {
-  width: 100%;
-  height: 70vh;
-  border: 1px solid #e8f0f8;
-  border-radius: 12px;
-  background: #fff;
-}
-
-@media (max-width: 960px) {
-  .content-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
+.preview-error p,
+.preview-empty p {
+  margin-top: 12px;
+  font-size: 14px;
 }
 </style>
