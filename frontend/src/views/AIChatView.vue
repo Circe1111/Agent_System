@@ -27,7 +27,9 @@
       </div>
 
       <div v-if="isLoading" class="loading-indicator">
-        <el-skeleton :rows="2" animated />
+        <div class="typing-bubble">
+          <span></span><span></span><span></span>
+        </div>
       </div>
     </div>
 
@@ -85,8 +87,9 @@ const suggestions = [
 
 // 渲染内容（支持Markdown）
 const renderContent = (message) => {
-  let content = message.content
-  // 简单的Markdown渲染
+  if (!message?.content) return ''
+  const escapeHtml = (value) => value.replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]))
+  let content = escapeHtml(message.content)
   content = content.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
   content = content.replace(/\*(.*?)\*/g, '<em>$1</em>')
   content = content.replace(/`(.*?)`/g, '<code>$1</code>')
@@ -103,7 +106,10 @@ const formatTime = (timestamp) => {
 // 滚动到底部
 const scrollToBottom = () => {
   if (messagesContainer.value) {
-    messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+    messagesContainer.value.scrollTo({
+      top: messagesContainer.value.scrollHeight,
+      behavior: 'smooth',
+    })
   }
 }
 
@@ -140,23 +146,37 @@ const sendMessage = async () => {
     message,
     sessionId.value,
     (chunk) => {
+      console.log('chatStream chunk:', chunk)
       if (chunk.type === 'error') {
         ElMessage.error(chunk.msg || 'AI 服务暂时不可用，请稍后重试')
         return
       }
       // 兼容多种后端字段：content / text / delta / message
-      const piece =
-        chunk.content ??
-        chunk.text ??
-        chunk.delta ??
-        chunk.message ??
+      let piece =
+        chunk?.content ??
+        chunk?.text ??
+        chunk?.delta ??
+        chunk?.message ??
         (typeof chunk === 'string' ? chunk : '')
-      if (!piece) return
+      if (piece === undefined || piece === null) return
+      piece = String(piece)
+
+      // 清洗前端渲染文本，剥离重复 data: 前缀和多余换行
+      piece = piece
+        .replace(/\bdata:\s*/g, '')
+        .replace(/\{\s*"type"\s*:\s*"delta"\s*,\s*"content"\s*:\s*/g, '')
+        .replace(/\}\s*$/g, '')
+        .replace(/^\s*[:]+\s*/g, '')
+
+      if (!piece.trim()) return
       const current = userStore.chatHistory[aiIndex]
       if (current) {
-        current.content = (current.content || '') + piece
-        // 触发 store 内的 chatHistory 响应式更新（push 后已生效，但原地修改需重写）
-        userStore.chatHistory.splice(aiIndex, 1, { ...current })
+        const nextContent = (current.content || '') + String(piece)
+        userStore.chatHistory[aiIndex] = {
+          ...current,
+          content: nextContent,
+          timestamp: new Date().toISOString(),
+        }
         nextTick(() => {
           scrollToBottom()
         })
@@ -174,10 +194,11 @@ const sendMessage = async () => {
       console.error('chatStream error:', err)
       const current = userStore.chatHistory[aiIndex]
       if (current) {
-        current.content =
-          (current.content || '') +
-          '\n\n[错误] AI 回复失败：' + (err?.message || '未知错误')
-        userStore.chatHistory.splice(aiIndex, 1, { ...current })
+        userStore.chatHistory[aiIndex] = {
+          ...current,
+          content: (current.content || '') + '\n\n[错误] AI 回复失败：' + (err?.message || '未知错误'),
+          timestamp: new Date().toISOString(),
+        }
       }
       ElMessage.error('AI 回复失败，请稍后重试')
       isLoading.value = false
@@ -316,9 +337,33 @@ nextTick(() => {
 
 .loading-indicator {
   padding: 10px;
-  background-color: #f8f9fa;
-  border-radius: 8px;
   margin-bottom: 20px;
+}
+
+.typing-bubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  background: white;
+  border-radius: 999px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.typing-bubble span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #63b3ed;
+  animation: bounce 1.2s infinite ease-in-out;
+}
+
+.typing-bubble span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-bubble span:nth-child(3) {
+  animation-delay: 0.4s;
 }
 
 .empty-chat {
@@ -336,6 +381,19 @@ nextTick(() => {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes bounce {
+  0%,
+  80%,
+  100% {
+    transform: scale(0.8);
+    opacity: 0.6;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
   }
 }
 </style>

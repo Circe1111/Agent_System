@@ -131,8 +131,9 @@ const handleRegister = async () => {
         )
         ElMessage.success('注册成功，已自动登录！')
       } catch (error) {
-        ElMessage.error(error?.message || '注册失败，请稍后重试')
-        console.error(error)
+        const msg = error?.message || '注册失败，请稍后重试'
+        ElMessage.error(msg)
+        console.error('register error:', error)
       } finally {
         loading.value = false
       }

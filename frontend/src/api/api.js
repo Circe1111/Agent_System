@@ -41,7 +41,13 @@ api.interceptors.response.use(
       localStorage.removeItem('token')
       window.location.href = '/login'
     }
-    return Promise.reject(error)
+
+    const status = error.response?.status
+    const msg = error.response?.data?.msg || error.message || '请求失败'
+    const wrappedError = new Error(msg)
+    wrappedError.status = status
+    wrappedError.originalError = error
+    return Promise.reject(wrappedError)
   },
 )
 
@@ -73,6 +79,15 @@ export const login = (username, password) => {
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
+  }).then((response) => {
+    const body = response?.data || {}
+    if (body?.data?.token) {
+      response.data = {
+        ...body,
+        token: body.data.token,
+      }
+    }
+    return response
   })
 }
 
@@ -150,29 +165,72 @@ export async function chatStream(message, sessionId, onChunk, onDone, onError) {
     while (true) {
       const { done, value } = await reader.read()
       if (done) {
+        if (buffer) {
+          processChunk(buffer)
+        }
         if (onDone) onDone()
         break
       }
       buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n\n')
-      buffer = lines.pop() || ''
+      const segments = buffer.split(/\r?\n\r?\n/)
+      buffer = segments.pop() || ''
+      for (const segment of segments) {
+        processChunk(segment)
+      }
+    }
+
+    function processChunk(chunk) {
+      const lines = String(chunk)
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter((line) => line && !line.startsWith(':'))
+
       for (const line of lines) {
-        if (line.startsWith('data: ')) {
+        const payload = parseSseLine(line)
+        if (!payload || !onChunk) continue
+
+        if (typeof payload === 'object' && payload !== null) {
+          onChunk(payload)
+        } else if (typeof payload === 'string') {
+          onChunk({ content: payload })
+        }
+      }
+    }
+
+    function parseSseLine(raw) {
+      let text = String(raw).trim()
+      if (!text) return null
+
+      if (text.startsWith('data:')) {
+        text = text.slice(5).trim()
+      }
+      if (!text) return null
+
+      if (text.startsWith('data:')) {
+        return parseSseLine(text)
+      }
+
+      try {
+        return JSON.parse(text)
+      } catch {
+        const jsonStart = text.indexOf('{')
+        const jsonEnd = text.lastIndexOf('}')
+        if (jsonStart >= 0 && jsonEnd > jsonStart) {
           try {
-            const data = JSON.parse(line.slice(6))
-            if (onChunk) onChunk(data)
-          } catch (e) {
-            // skip malformed SSE
+            return JSON.parse(text.slice(jsonStart, jsonEnd + 1))
+          } catch {
+            // fall through
           }
         }
       }
+
+      return text
     }
   } catch (err) {
     if (onError) onError(err)
     else console.error('chatStream error:', err)
   }
 }
-
 // ====== 以下接口暂时保留，等C的其他模块文件出来后再改 ======
 // （D的AI接口、资源接口等，目前路径不确定，先留着占位）
 

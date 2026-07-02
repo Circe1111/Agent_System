@@ -36,10 +36,15 @@ async def chat_stream(
     payload.update(kwargs)
 
     try:
+        stream_url = (
+            client._spark_signed_url()
+            if "xf-yun.com" in client.base_url
+            else client._chat_url()
+        )
         async with httpx.AsyncClient(timeout=client.timeout) as http:
             async with http.stream(
                 "POST",
-                client._chat_url(),
+                stream_url,
                 headers=client._headers(),
                 json=payload,
             ) as resp:

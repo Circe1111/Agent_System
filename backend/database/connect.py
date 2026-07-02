@@ -4,6 +4,19 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
+
+def ensure_default_user():
+    from database.models import EduUser
+    from database import crud
+
+    db = SessionLocal()
+    try:
+        existing = crud.get_user_by_username(db, "admin")
+        if not existing:
+            crud.create_user(db, {"username": "admin", "password": "123456", "nickname": "管理员"})
+    finally:
+        db.close()
+
 # 加载 .env 文件
 load_dotenv()
 

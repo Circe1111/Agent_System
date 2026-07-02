@@ -15,7 +15,15 @@ import os
 import json
 import logging
 import requests
+import hmac
+import hashlib
+import base64
+from datetime import datetime, timezone
+from urllib.parse import urlencode, urlparse
 from typing import Any, List, Optional
+
+from dotenv import load_dotenv
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +40,10 @@ class LLMClient:
     ) -> None:
         self.api_key: str = api_key or os.getenv("LLM_API_KEY", "")
         self.base_url: str = (
-            base_url or os.getenv("LLM_BASE_URL", "https://opencode.ai/zen/v1")
+            base_url
+            or os.getenv("LLM_BASE_URL")
+            or os.getenv("SPARK_BASE_URL")
+            or os.getenv("LLM_BASE_URL", "https://opencode.ai/zen/v1")
         ).rstrip("/")
         self.model: str = model or os.getenv("LLM_MODEL", "opencode-go/deepseek-v4-flash")
         self.embed_model: str = embed_model or os.getenv("LLM_EMBED_MODEL", "text-embedding-3-small")
@@ -41,13 +52,82 @@ class LLMClient:
     # ---- internals --------------------------------------------------------
 
     def _headers(self) -> dict:
+        if "xf-yun.com" in self.base_url:
+            api_key = os.getenv("SPARK_API_KEY") or os.getenv("LLM_API_KEY")
+            api_secret = os.getenv("SPARK_API_SECRET") or os.getenv("LLM_API_SECRET")
+            headers = {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+            }
+            if api_key and api_secret:
+                encoded_auth = base64.b64encode(
+                    f"{api_key}:{api_secret}".encode('utf-8')
+                ).decode('utf-8')
+                headers["Authorization"] = f"Bearer {encoded_auth}"
+            return headers
         return {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
 
+    def _spark_signed_url(self) -> str:
+        """Construct a signed URL for Xunfei Spark (HMAC-SHA256) when required.
+
+        Uses SPARK_APP_ID / SPARK_API_KEY / SPARK_API_SECRET if available,
+        otherwise falls back to LLM_API_KEY and no signature.
+        """
+        # prefer explicit SPARK_* env vars
+        app_id = os.getenv("SPARK_APP_ID")
+        api_key = os.getenv("SPARK_API_KEY") or os.getenv("LLM_API_KEY")
+        api_secret = os.getenv("SPARK_API_SECRET") or os.getenv("LLM_API_SECRET")
+
+        # base_url may already include the full path (e.g. /x2/chat/completions)
+        base = self.base_url
+        parsed = urlparse(base)
+        path = parsed.path or "/x2/chat/completions"
+
+        # date in GMT
+        date = datetime.now(timezone.utc).strftime('%a, %d %b %Y %H:%M:%S GMT')
+
+        if not api_secret:
+            logger.debug("No Spark secret found; falling back to unsigned URL")
+            query = urlencode({
+                "date": date,
+                "host": "spark-api-open.xf-yun.com",
+            })
+            return f"{base}?{query}"
+
+        signature_origin = f"host: spark-api-open.xf-yun.com\ndate: {date}\nPOST {path} HTTP/1.1"
+        signature = hmac.new(
+            api_secret.encode('utf-8'),
+            signature_origin.encode('utf-8'),
+            digestmod=hashlib.sha256,
+        ).digest()
+        signature_base64 = base64.b64encode(signature).decode()
+
+        authorization_origin = (
+            f'api_key="{api_key}", algorithm="hmac-sha256", '
+            f'headers="host date request-line", signature="{signature_base64}"'
+        )
+        authorization = base64.b64encode(authorization_origin.encode('utf-8')).decode()
+        query = urlencode({
+            "authorization": authorization,
+            "date": date,
+            "host": "spark-api-open.xf-yun.com",
+        })
+
+        try:
+            masked_key = (api_key[:4] + '...' + api_key[-4:]) if api_key and len(api_key) > 8 else '***'
+        except Exception:
+            masked_key = '***'
+        logger.debug("Built Spark signed URL (api_key=%s, path=%s, date=%s)", masked_key, path, date)
+        return f"{base}?{query}"
+
     def _chat_url(self) -> str:
-        return f"{self.base_url}/chat/completions"
+        url = self.base_url.rstrip('/')
+        if url.endswith('/chat/completions') or url.endswith('/v2/chat') or url.endswith('/chat'):
+            return url
+        return f"{url}/chat/completions"
 
     def _embed_url(self) -> str:
         return f"{self.base_url}/embeddings"
@@ -76,7 +156,8 @@ class LLMClient:
         }
         payload.update(kwargs)
         resp = requests.post(
-            self._chat_url(),
+            # If targeting Xunfei Spark, use a signed URL
+            self._spark_signed_url() if "xf-yun.com" in self.base_url else self._chat_url(),
             headers=self._headers(),
             json=payload,
             stream=stream,

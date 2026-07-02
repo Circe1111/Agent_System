@@ -104,8 +104,9 @@ const handleLogin = async () => {
         })
         ElMessage.success('登录成功！')
       } catch (error) {
-        ElMessage.error(error?.message || '登录失败，请检查账号密码或后端接口')
-        console.error(error)
+        const msg = error?.message || '登录失败，请检查账号密码或后端接口'
+        ElMessage.error(msg)
+        console.error('login error:', error)
       } finally {
         loading.value = false
       }

@@ -9,7 +9,7 @@ from api.v1.chat_stream_router import router as chat_stream_router
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from database.connect import engine, Base
+from database.connect import engine, Base, ensure_default_user
 from api import user
 from api.common import get_current_user
 from utils.exception import register_exception
@@ -20,14 +20,21 @@ from backend.workflow import create_workflow_graph
 from backend.models_agent import AgentState
 
 Base.metadata.create_all(bind=engine)
+ensure_default_user()
 
 app = FastAPI(title="教育助手后端")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",  # Vite dev
+        "http://localhost:5174",  # Vite alternate port
+        "http://localhost:5175",  # Vite alternate port
+        "http://localhost:5176",  # Vite alternate port
         "http://localhost",        # Docker nginx proxy
         "http://127.0.0.1:5173",   # Alternative dev
+        "http://127.0.0.1:5174",   # Alternative dev alternate port
+        "http://127.0.0.1:5175",   # Alternative dev alternate port
+        "http://127.0.0.1:5176",   # Alternative dev alternate port
     ],
     allow_credentials=True,
     allow_methods=["*"],

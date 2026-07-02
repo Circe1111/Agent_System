@@ -1,223 +1,262 @@
-# EduAgent
+# AI_Agent_System
 
-基于大模型的个性化学习多智能体系统 —— 一键 Docker 部署，无需配置环境。
+基于大模型的个性化学习多智能体系统，提供智能对话、学习路径规划、资源管理等功能。
 
----
+## 功能特性
 
-## 快速开始（共 3 步，约 5 分钟）
+- 🤖 **AI 智能对话**：支持流式响应的智能问答系统
+- 📚 **学习路径规划**：根据用户画像生成个性化学习路径
+- 👤 **用户学习画像**：追踪和分析用户学习行为
+- ⚙️ **LLM 配置管理**：支持多种 OpenAI 兼容接口
+- 📊 **管理后台**：用户管理和资源统计
 
-### 准备工作：安装 Docker
+## 技术栈
 
-**Windows 用户：**
+| 分类 | 技术 | 版本 |
+|------|------|------|
+| 前端框架 | Vue | 3.5+ |
+| UI 组件 | Element Plus | 2.14+ |
+| 状态管理 | Pinia | 3.0+ |
+| 路由 | Vue Router | 5.1+ |
+| 后端框架 | FastAPI | 0.100+ |
+| 智能体框架 | LangGraph | 0.2+ |
+| 向量数据库 | FAISS | 1.7+ |
+| 数据库 | SQLite | - |
+| 容器化 | Docker | - |
 
-1. 下载 [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-2. 双击安装，一路点"下一步"
-3. 安装完成后启动 Docker Desktop，等待右下角图标变绿（**白色鲸鱼图标**）
-4. 打开 PowerShell（开始菜单 → 搜索 "PowerShell" → 打开）
-5. 输入 `docker --version`，看到版本号就说明安装成功
+## 快速开始
 
-**Mac 用户：**
+### 方式一：Docker 一键部署（推荐）
 
-同上，下载安装 Docker Desktop 即可。
+#### 1. 安装 Docker
 
-**Linux 用户（Ubuntu/Debian）：**
+**Windows / Mac：**
+- 下载 [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+- 安装并启动，等待右下角鲸鱼图标变绿
 
+**Linux（Ubuntu/Debian）：**
 ```bash
 sudo apt update
 sudo apt install docker.io docker-compose-v2 -y
 sudo usermod -aG docker $USER
-# 重新登录终端使权限生效
-sudo service docker start
-docker --version   # 验证安装
+# 重新登录使权限生效
 ```
 
----
-
-### 第 1 步：配置 API Key（AI 聊天要用）
-
-打开**终端**（Windows 用 PowerShell），进入项目文件夹：
+#### 2. 配置环境变量
 
 ```bash
-# 先进入项目目录（根据实际位置调整）
-cd EduAgent
+# 进入项目目录
+cd AI_Agent_System
 
 # 复制环境变量模板
 cp .env.example .env
-```
 
-然后用**记事本**（Windows）或任意文本编辑器打开 `.env` 文件：
-
-```bash
-# Windows PowerShell:
-notepad .env
-
-# Mac / Linux:
+# 编辑配置文件（Windows 用 notepad .env）
 nano .env
 ```
 
-找到这两行，修改成你自己的 API Key：
+修改 `.env` 文件中的关键配置：
 
 ```env
+# AI 模型配置
 LLM_API_KEY="sk-你的API密钥"
 LLM_BASE_URL="https://api.openai.com/v1"
 LLM_MODEL="gpt-4o"
+
+# JWT 密钥（必须修改，至少32位随机字符串）
+JWT_SECRET_KEY="your-random-secret-key-here"
 ```
 
-② **JWT 密钥**（必改，**不能以 `change-` 开头**，否则后端会直接退出并触发 Docker 容器无限重启）：
+> **没有 API Key？**
+> - DeepSeek：[platform.deepseek.com](https://platform.deepseek.com)
+> - OpenAI：[platform.openai.com](https://platform.openai.com)
+> - 其他兼容服务：修改 `LLM_BASE_URL` 和 `LLM_MODEL` 即可
 
-```env
-JWT_SECRET_KEY="aB3xK9mQ7wR2tY5nL8pV1cF4hJ6dS0gU"
-```
-
-> 建议改成至少 32 位的随机字符串（如 `openssl rand -base64 32` 的输出），不能留空，也不能保留 `.env.example` 里的 `change-me-...` 占位符。
-
-> ❓ **没有 API Key？**
-> - **DeepSeek**：去 [platform.deepseek.com](https://platform.deepseek.com) 注册 → 创建 API Key
-> - **OpenAI**：去 [platform.openai.com](https://platform.openai.com) 获取
-> - **其他兼容服务**：修改 `LLM_BASE_URL` 和 `LLM_MODEL` 即可
-
----
-
-### 第 2 步：一键启动
-
-打开**终端**，在项目目录下执行：
+#### 3. 启动服务
 
 ```bash
 docker compose up -d
 ```
 
-> 首次启动会自动下载镜像、安装依赖、创建数据库，**大约等 2-3 分钟**。之后启动只需几秒。
-
-查看启动进度：
+首次启动会自动下载依赖，约 2-3 分钟。查看启动状态：
 
 ```bash
+# 查看所有容器状态
+docker compose ps
+
+# 查看后端日志
 docker compose logs backend --tail=20
 ```
 
-看到 `Uvicorn running on http://0.0.0.0:8000` 就说明启动完成。
+看到 `Uvicorn running on http://0.0.0.0:8000` 表示启动成功。
 
----
-
-### 第 3 步：打开浏览器
+#### 4. 访问服务
 
 | 地址 | 说明 |
 |------|------|
-| http://localhost | 🔥 **前端页面**（主要使用） |
-| http://localhost:8000/docs | 后端 API 文档 |
+| http://localhost | 前端页面 |
+| http://localhost:8000/docs | API 文档 |
 
-**演示账号（登录页面可看到）：**
+#### 演示账号
 
 | 用户名 | 密码 | 角色 |
 |--------|------|------|
 | `admin` | `admin123` | 管理员 |
 | `student1` | `123456` | 学生 |
 
----
+### 方式二：本地开发
+
+#### 后端开发
+
+```bash
+# 进入后端目录
+cd backend
+
+# 创建虚拟环境
+python -m venv .venv
+
+# 激活虚拟环境
+# Windows: .venv\Scripts\activate
+# Linux/Mac: source .venv/bin/activate
+
+# 安装依赖
+pip install -r requirements.txt
+
+# 设置环境变量
+cp .env.example .env
+# 编辑 .env 配置 LLM_API_KEY 和 JWT_SECRET_KEY
+
+# 初始化数据库
+python -m alembic upgrade head
+python scripts/seed_db.py
+
+# 启动开发服务器
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
+```
+
+#### 前端开发
+
+```bash
+# 进入前端目录
+cd frontend
+
+# 安装依赖（需要 Node.js >= 22）
+npm install
+
+# 启动开发服务器
+npm run dev
+```
+
+访问 http://localhost:5173 查看前端页面。
+
+## 目录结构
+
+```
+AI_Agent_System/
+├── backend/                    # 后端代码
+│   ├── api/                    # API 路由
+│   │   ├── v1/                 # v1 版本 API
+│   │   ├── user.py             # 用户相关接口
+│   │   ├── conversation_router.py  # 对话接口
+│   │   ├── portrait_router.py  # 学习画像接口
+│   │   └── settings_router.py  # 设置接口
+│   ├── database/               # 数据库操作
+│   ├── services/               # 业务服务
+│   ├── rag/                    # RAG 相关
+│   ├── prompt/                 # 提示词模板
+│   ├── schemas/                # 数据模型
+│   ├── utils/                  # 工具函数
+│   ├── main.py                 # 入口文件
+│   └── requirements.txt        # 依赖列表
+├── frontend/                   # 前端代码
+│   ├── src/
+│   │   ├── api/                # API 调用
+│   │   ├── components/         # 公共组件
+│   │   ├── stores/             # Pinia 状态管理
+│   │   ├── views/              # 页面视图
+│   │   └── router/             # 路由配置
+│   ├── index.html
+│   └── package.json
+├── .env.example               # 环境变量模板
+├── docker-compose.yml         # Docker 配置
+└── README.md                  # 项目说明
+```
 
 ## 常用命令
 
 ```bash
-# 启动服务
-docker compose up -d
+# Docker 命令
+docker compose up -d          # 启动服务
+docker compose down           # 停止服务
+docker compose logs backend   # 查看后端日志
+docker compose restart        # 重启服务
 
-# 查看后端日志（排查问题）
-docker compose logs backend
+# 后端命令
+uvicorn main:app --reload     # 启动开发服务器
+alembic revision --autogenerate -m "描述"  # 创建迁移
+alembic upgrade head          # 执行迁移
 
-# 停止服务（数据保留）
-docker compose down
-
-# 重新启动
-docker compose up -d
-
-# 完全重置（删除所有数据，慎用！）
-docker compose down -v
+# 前端命令
+npm run dev                   # 启动开发服务器
+npm run build                 # 构建生产版本
+npm run format                # 格式化代码
 ```
 
----
+## API 接口
+
+| 接口 | 方法 | 说明 |
+|------|------|------|
+| `/user/login` | POST | 用户登录 |
+| `/user/register` | POST | 用户注册 |
+| `/user/info` | GET | 获取用户信息 |
+| `/api/v1/chat/stream` | POST | AI 对话（流式） |
+| `/portrait/me` | GET | 获取学习画像 |
+| `/portrait/update` | POST | 更新学习画像 |
+| `/user/settings` | GET/PUT | 用户设置 |
+
+完整 API 文档：http://localhost:8000/docs
 
 ## 环境变量说明
 
-打开 `.env` 文件可以看到所有配置：
-
-| 变量 | 说明 | 示例 |
-|------|------|------|
-| `LLM_API_KEY` | API 密钥（**必填**） | sk-xxxx |
-| `LLM_BASE_URL` | API 接口地址 | https://api.openai.com/v1 |
-| `LLM_MODEL` | 模型名称 | gpt-4o |
-| `JWT_SECRET_KEY` | JWT 密钥（**必改**，不能以 `change-` 开头） | aB3xK9mQ... |
-| `BACKEND_PORT` | 后端端口（默认 8000） | 8000 |
-| `FRONTEND_PORT` | 前端端口（默认 80） | 80 |
-
-> 如果 80 端口被占用（显示"无法连接"），修改 `.env` 中的 `FRONTEND_PORT=8080`，然后重新启动，访问 `http://localhost:8080`。
-
----
+| 变量 | 说明 | 默认值 |
+|------|------|--------|
+| `LLM_API_KEY` | LLM API 密钥 | - |
+| `LLM_BASE_URL` | LLM API 地址 | https://api.openai.com/v1 |
+| `LLM_MODEL` | LLM 模型名称 | gpt-4o |
+| `JWT_SECRET_KEY` | JWT 密钥（必改） | - |
+| `BACKEND_PORT` | 后端端口 | 8000 |
+| `FRONTEND_PORT` | 前端端口 | 80 |
 
 ## 常见问题
 
-### Q：启动后 http://localhost 打不开？
-
-**A：** 首次启动需要 2-3 分钟初始化，等一会儿再刷新。如果还是不行：
-
+### Q：启动后无法访问？
+A：检查 Docker 是否运行，查看日志：
 ```bash
-# 查看后端是否正常运行
 docker compose ps
-# 查看日志找错误
 docker compose logs backend
 ```
 
-### Q：登录提示"账号密码错误"？
+### Q：AI 聊天无响应？
+A：检查 `.env` 中的 `LLM_API_KEY` 是否正确配置。
 
-**A：** 确认使用的是正确的演示账号：
-- 管理员：`admin` / `admin123`
-- 学生：`student1` / `123456`
-
-如果数据库被重置过，可能需要重新创建账号。
-
-### Q：AI 聊天没有回复？
-
-**A：** 检查 `.env` 文件中的 `LLM_API_KEY` 是否正确填写：
-
-```bash
-docker compose logs backend | grep ERROR
-```
-
-### Q：Docker 提示"端口被占用"？
-
-**A：** 修改 `.env` 中的端口号：
-
+### Q：端口被占用？
+A：修改 `.env` 中的端口号：
 ```env
 BACKEND_PORT=8080
-FRONT_PORT=8081
+FRONTEND_PORT=8081
 ```
 
-然后重新启动：`docker compose up -d`
+### Q：JWT_SECRET_KEY 错误？
+A：`.env` 中的 `JWT_SECRET_KEY` 不能以 `change-` 开头，需要设置为至少 32 位的随机字符串。
 
-### Q：Windows 提示"WSL integration not enabled"？
+## 贡献指南
 
-**A：**
-1. 打开 Docker Desktop
-2. 点击右上角 ⚙️ Settings
-3. 选择 Resources → WSL Integration
-4. 打开你的 WSL 发行版开关
-5. 点击 Apply & Restart
-
-### Q：`docker compose up -d` 后端容器不断重启，日志显示 "JWT_SECRET_KEY is not set or still uses default value"？
-
-**A：** `.env` 中的 `JWT_SECRET_KEY` 不能以 `change-` 开头（系统会拒绝启动）。修改为随机字符串（至少 32 字符），然后重新启动：
-
-```bash
-notepad .env
-# 修改 JWT_SECRET_KEY 为随机字符串
-docker compose down
-docker compose up -d
-```
-
----
-
-## 技术栈
-
-Python 3.11 / FastAPI / LangGraph / FAISS / Vue 3 / Element Plus / SQLite / Docker / nginx
+1. Fork 本仓库
+2. 创建特性分支：`git checkout -b feature/xxx`
+3. 提交修改：`git commit -m 'Add xxx'`
+4. 推送到分支：`git push origin feature/xxx`
+5. 提交 Pull Request
 
 ## License
 
-MIT
+MIT License

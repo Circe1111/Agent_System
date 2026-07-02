@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Form
+from fastapi import APIRouter, Depends, Form, Request
 from sqlalchemy.orm import Session
 from database.connect import get_db
 from database import crud
@@ -8,6 +8,10 @@ from utils.response import success
 from utils.exception import ApiException
 
 router = APIRouter(prefix="/user", tags=["用户模块"])
+
+@router.options("/register")
+def register_options(request: Request):
+    return {"status": "ok"}
 
 @router.post("/register")
 def register(user: UserCreate, db: Session = Depends(get_db)):

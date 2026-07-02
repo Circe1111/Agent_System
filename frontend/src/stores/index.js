@@ -54,7 +54,15 @@ export const useUserStore = defineStore('user', {
       try {
         const res = await login(loginForm.username, loginForm.password)
         const payload = res?.data || {}
-        const token = payload.token || payload.accessToken || payload.access_token || payload.data?.token || payload.data?.accessToken || payload.data?.data?.token
+        const token = payload.token
+          || payload.accessToken
+          || payload.access_token
+          || payload.data?.token
+          || payload.data?.accessToken
+          || payload.data?.access_token
+          || payload.data?.data?.token
+          || payload.data?.data?.accessToken
+          || payload.data?.data?.access_token
 
         if (!token) {
           throw new Error('登录接口未返回 token')
