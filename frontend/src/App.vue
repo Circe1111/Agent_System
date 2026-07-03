@@ -49,6 +49,7 @@ const handleCommand = (cmd) => {
       </div>
 
       <nav class="nav-links" v-if="isAuthenticated">
+        <router-link to="/dashboard" class="nav-link">首页</router-link>
         <router-link to="/chat" class="nav-link">AI对话</router-link>
         <router-link to="/path" class="nav-link">学习路径</router-link>
         <router-link to="/resources" class="nav-link">学习资源</router-link>

@@ -1,0 +1,150 @@
+{
+  "测试时间": "2026-07-03 11:19:26",
+  "测试环境": {
+    "后端地址": "http://localhost:8000",
+    "Python版本": "3.12.7 | packaged by Anaconda, Inc. | (main, Oct  4 2024, 13:17:27) [MSC v.1929 64 bit (AMD64)]"
+  },
+  "测试汇总": {
+    "总用例数": 18,
+    "通过": 17,
+    "失败": 1,
+    "通过率": "94.4%"
+  },
+  "用例详情": [
+    {
+      "name": "健康检查",
+      "expected": "{\"status\":\"ok\"}",
+      "actual": "{'status': 'ok'}",
+      "status": "通过"
+    },
+    {
+      "name": "根路径",
+      "expected": "服务正常",
+      "actual": "服务正常，访问 /docs",
+      "status": "通过"
+    },
+    {
+      "name": "F01-01 重复用户名注册",
+      "expected": "用户名已存在",
+      "actual": "用户名已存在",
+      "status": "通过"
+    },
+    {
+      "name": "F01-02 错误密码登录",
+      "expected": "登录失败",
+      "actual": "账号密码错误",
+      "status": "通过"
+    },
+    {
+      "name": "F01-03 合法用户登录",
+      "expected": "返回有效JWT",
+      "actual": "token_len=119",
+      "status": "通过"
+    },
+    {
+      "name": "F01-04 未授权访问返回401",
+      "expected": "401",
+      "actual": "401",
+      "status": "通过"
+    },
+    {
+      "name": "F01-05 获取个人信息",
+      "expected": "username信息",
+      "actual": "200",
+      "status": "通过"
+    },
+    {
+      "name": "F02-01 未登录访问对话",
+      "expected": "401",
+      "actual": "401",
+      "status": "通过"
+    },
+    {
+      "name": "F02-02 SSE流式接口",
+      "expected": "200",
+      "actual": "500",
+      "status": "失败"
+    },
+    {
+      "name": "F02-05 获取会话列表",
+      "expected": "200",
+      "actual": "200",
+      "status": "通过"
+    },
+    {
+      "name": "F02-08 获取所有会话",
+      "expected": "200",
+      "actual": "200",
+      "status": "通过"
+    },
+    {
+      "name": "F02-10 登录可访问（新建对话前提）",
+      "expected": "200",
+      "actual": "200",
+      "status": "通过"
+    },
+    {
+      "name": "F03-01 获取画像数据",
+      "expected": "200",
+      "actual": "200",
+      "status": "通过"
+    },
+    {
+      "name": "F03-04 手动修改画像",
+      "expected": "200",
+      "actual": "200",
+      "status": "通过"
+    },
+    {
+      "name": "F04-01 获取学习路径列表",
+      "expected": "200",
+      "actual": "200",
+      "status": "通过"
+    },
+    {
+      "name": "F05-01 获取课程列表",
+      "expected": "200",
+      "actual": "200",
+      "status": "通过"
+    },
+    {
+      "name": "F05-06 路径遍历拦截",
+      "expected": "拦截",
+      "actual": "422",
+      "status": "通过"
+    },
+    {
+      "name": "F06-01 获取系统配置",
+      "expected": "200",
+      "actual": "200",
+      "status": "通过"
+    }
+  ],
+  "性能测试": {
+    "/user/info": {
+      "avg_ms": 3.3,
+      "min_ms": 2.5,
+      "max_ms": 4.6
+    },
+    "/portrait/me": {
+      "avg_ms": 4.1,
+      "min_ms": 3.0,
+      "max_ms": 5.5
+    },
+    "/learning-path/list": {
+      "avg_ms": 3.7,
+      "min_ms": 2.6,
+      "max_ms": 4.5
+    },
+    "/resources/courses": {
+      "avg_ms": 20.9,
+      "min_ms": 19.3,
+      "max_ms": 22.3
+    },
+    "/user/settings": {
+      "avg_ms": 2.4,
+      "min_ms": 1.0,
+      "max_ms": 3.5
+    }
+  }
+}
