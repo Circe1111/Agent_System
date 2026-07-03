@@ -20,7 +20,13 @@ def ensure_default_user():
         
         existing = crud.get_user_by_username(db, "admin")
         if not existing:
-            crud.create_user(db, {"username": "admin", "password": "123456", "nickname": "管理员"})
+            crud.create_user(db, {"username": "admin", "password": "admin123", "nickname": "管理员"})
+            print(">>> 创建默认管理员用户: admin/admin123")
+        else:
+            from database.crud import hash_password
+            existing.password = hash_password("admin123")
+            db.commit()
+            print(">>> 更新默认管理员用户密码: admin/admin123")
     finally:
         db.close()
 
