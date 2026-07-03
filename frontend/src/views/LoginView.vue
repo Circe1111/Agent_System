@@ -53,7 +53,7 @@
           </div>
 
           <el-form-item>
-            <el-button type="primary" style="width: 100%; height: 44px; font-size: 16px;" @click="handleLogin" :loading="loading">
+            <el-button class="login-btn" @click="handleLogin" :loading="loading">
               立即登录
             </el-button>
           </el-form-item>
@@ -63,12 +63,6 @@
             <el-link type="primary" @click="handleRegister">注册账号</el-link>
           </div>
         </el-form>
-
-        <div class="demo-login">
-          <p>演示账号：</p>
-          <el-tag type="success">学生：student1 / 123456</el-tag>
-          <el-tag type="warning">管理员：admin / admin123</el-tag>
-        </div>
       </div>
     </div>
   </div>
@@ -146,7 +140,7 @@ const handleForgotPassword = () => {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #ffffff;
 }
 
 .header {
@@ -154,7 +148,10 @@ const handleForgotPassword = () => {
   justify-content: space-between;
   align-items: center;
   padding: 20px 40px;
-  background: rgba(255, 255, 255, 0.1);
+  background: #ffffff;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  position: relative;
+  z-index: 1;
 }
 
 .logo {
@@ -166,15 +163,15 @@ const handleForgotPassword = () => {
 .logo-icon {
   width: 48px;
   height: 48px;
-  background: white;
+  background: #1253D2;
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #667eea;
+  color: #ffffff;
   font-size: 20px;
   font-weight: bold;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 4px 12px rgba(18, 83, 210, 0.25);
 }
 
 .logo-text {
@@ -185,18 +182,18 @@ const handleForgotPassword = () => {
 .logo-title {
   font-size: 20px;
   font-weight: bold;
-  color: white;
+  color: #1a365d;
 }
 
 .logo-subtitle {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.7);
+  color: #5a7a9a;
   letter-spacing: 1px;
 }
 
 .welcome-text {
   font-size: 18px;
-  color: white;
+  color: #1a365d;
   font-weight: 500;
 }
 
@@ -244,6 +241,49 @@ const handleForgotPassword = () => {
   font-size: 15px;
 }
 
+.login-input :deep(.el-input__wrapper) {
+  background: #ffffff;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.10), 0 1px 4px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+  transition: all 0.3s ease;
+}
+
+.login-input :deep(.el-input__wrapper:hover) {
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.14), 0 2px 6px rgba(0, 0, 0, 0.08);
+  border-color: #cbd5e0;
+}
+
+.login-input :deep(.el-input__wrapper.is-focus) {
+  box-shadow: 0 6px 28px rgba(18, 83, 210, 0.25), 0 2px 8px rgba(18, 83, 210, 0.15);
+  border-color: #1253D2;
+}
+
+.login-btn {
+  width: 100%;
+  height: 44px;
+  font-size: 16px;
+  background: #1253D2;
+  border-color: #1253D2;
+  color: #ffffff;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.login-btn:hover {
+  background: #0e45b0;
+  border-color: #0e45b0;
+}
+
+.login-btn:active {
+  background: #0b378f;
+  border-color: #0b378f;
+}
+
+.login-btn.is-loading {
+  background: #1253D2;
+  border-color: #1253D2;
+}
+
 .form-options {
   display: flex;
   justify-content: space-between;
@@ -257,25 +297,5 @@ const handleForgotPassword = () => {
   margin-top: 20px;
   padding-top: 20px;
   border-top: 1px solid #e2e8f0;
-}
-
-.demo-login {
-  margin-top: 20px;
-  padding: 18px;
-  background-color: #f0f9ff;
-  border-radius: 10px;
-  text-align: center;
-}
-
-.demo-login p {
-  margin: 0 0 12px 0;
-  color: #4a5568;
-  font-weight: bold;
-  font-size: 14px;
-}
-
-.demo-login .el-tag {
-  margin: 6px;
-  font-size: 12px;
 }
 </style>

@@ -1,16 +1,23 @@
 import os
 from dotenv import load_dotenv
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 
 def ensure_default_user():
-    from database.models import EduUser
+    from database.models import EduUser, Students, LearningRecords, EduChat, EduResource, Conversation
     from database import crud
 
     db = SessionLocal()
     try:
+        # 确保 students 表有 learning_style 列（兼容旧数据库）
+        try:
+            db.execute(text("ALTER TABLE students ADD COLUMN learning_style VARCHAR(50)"))
+            db.commit()
+        except Exception:
+            db.rollback()
+        
         existing = crud.get_user_by_username(db, "admin")
         if not existing:
             crud.create_user(db, {"username": "admin", "password": "123456", "nickname": "管理员"})

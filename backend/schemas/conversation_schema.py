@@ -12,7 +12,7 @@ class ConversationCreate(BaseModel):
 class ConversationItem(ConversationCreate):
     id: int
     portrait_json: Optional[dict]
-    create_time: datetime
+    create_time: str
 
 # 分页查询对话返回体
 class ConversationPageResp(BaseModel):

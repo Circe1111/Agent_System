@@ -18,19 +18,14 @@
         active-text-color="#63b3ed"
         class="nav-menu"
       >
-        <el-menu-item index="dashboard" @click="navigateTo('/dashboard')">
-          <el-icon><House /></el-icon>
-          <span v-if="!isCollapse">首页</span>
+        <el-menu-item index="chat" @click="navigateTo('/chat')">
+          <el-icon><ChatLineRound /></el-icon>
+          <span v-if="!isCollapse">AI对话</span>
         </el-menu-item>
 
         <el-menu-item index="profile" @click="navigateTo('/profile')">
           <el-icon><User /></el-icon>
           <span v-if="!isCollapse">个人中心</span>
-        </el-menu-item>
-
-        <el-menu-item index="chat" @click="navigateTo('/chat')">
-          <el-icon><ChatLineRound /></el-icon>
-          <span v-if="!isCollapse">AI对话</span>
         </el-menu-item>
 
         <el-menu-item index="user-profile" @click="navigateTo('/user-profile')">
@@ -121,17 +116,16 @@ const route = useRoute()
 const userStore = useUserStore()
 
 const isCollapse = ref(false)
-const activeMenu = ref('dashboard')
+const activeMenu = ref('chat')
 
 const username = computed(() => userStore.userInfo?.username || '用户')
 const userAvatar = computed(() => userStore.userInfo?.avatar || '')
 const isAdmin = computed(() => userStore.isAdmin)
 const pageTitle = computed(() => {
   const titles = {
-    '/dashboard': '系统首页',
+    '/chat': 'AI智能对话',
     '/profile': '个人中心',
     '/user-profile': '偏好',
-    '/chat': 'AI智能对话',
     '/path': '个性化学习路径',
     '/resources': '学习资源中心',
     '/admin': '管理后台',
@@ -166,9 +160,8 @@ const handleCommand = (command) => {
 
 const updateActiveMenu = () => {
   const path = route.path
-  if (path.includes('/dashboard')) activeMenu.value = 'dashboard'
+  if (path.includes('/chat')) activeMenu.value = 'chat'
   else if (path.includes('/profile')) activeMenu.value = 'profile'
-  else if (path.includes('/chat')) activeMenu.value = 'chat'
   else if (path.includes('/user-profile')) activeMenu.value = 'user-profile'
   else if (path.includes('/path')) activeMenu.value = 'path'
   else if (path.includes('/resources')) activeMenu.value = 'resources'
@@ -197,20 +190,22 @@ router.afterEach(() => {
 }
 
 .sidebar {
-  background-color: var(--bg-sidebar);
+  background-color: #1a365d;
   transition: width 0.3s ease;
   height: 100vh;
   overflow-x: hidden;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .logo-container {
-  height: 60px;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #a8d8ea 0%, #b5ead7 100%);
+  background: #0f2340;
   cursor: pointer;
   transition: all 0.3s ease;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .logo-container:hover {
@@ -218,9 +213,10 @@ router.afterEach(() => {
 }
 
 .logo-text {
-  color: var(--text-primary);
-  font-size: 1.2rem;
-  font-weight: bold;
+  color: #ffffff;
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: 2px;
 }
 
 .nav-menu {
@@ -228,70 +224,112 @@ router.afterEach(() => {
 }
 /* Override Element Plus menu defaults */
 .nav-menu :deep(.el-menu-item) {
-  color: var(--text-secondary) !important;
+  color: #cbd5e0 !important;
   border-radius: 8px;
   margin: 4px 8px;
+  height: 48px;
+  line-height: 48px;
   transition: all 0.2s ease;
 }
 .nav-menu :deep(.el-menu-item:hover) {
-  background: rgba(168, 216, 234, 0.15) !important;
-  color: var(--text-primary) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
 }
 .nav-menu :deep(.el-menu-item.is-active) {
-  background: rgba(168, 216, 234, 0.22) !important;
-  color: #5aa8c4 !important;
+  background: rgba(99, 179, 237, 0.2) !important;
+  color: #63b3ed !important;
   font-weight: 600;
+}
+.nav-menu :deep(.el-sub-menu) {
+  color: #cbd5e0 !important;
+}
+.nav-menu :deep(.el-sub-menu__title) {
+  color: #cbd5e0 !important;
+  border-radius: 8px;
+  margin: 4px 8px;
+  height: 48px;
+  line-height: 48px;
+}
+.nav-menu :deep(.el-sub-menu__title:hover) {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: #ffffff !important;
 }
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: rgba(255, 255, 255, 0.9);
-  box-shadow: 0 2px 16px rgba(168, 216, 234, 0.1);
-  padding: 0 20px;
-  height: 60px;
+  background-color: #1a365d;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.2);
+  padding: 0 16px;
+  height: 64px;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
 }
 
 .collapse-btn {
-  font-size: 1.2rem;
-  color: #4a5568;
-  margin-right: 15px;
+  font-size: 1.25rem;
+  color: #ffffff;
+  margin-right: 16px;
+  padding: 8px;
+}
+
+.collapse-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
 }
 
 .page-title {
-  font-size: 1.2rem;
-  font-weight: bold;
-  color: var(--text-primary);
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #ffffff;
+  line-height: 1;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
 }
 
 .user-info {
   display: flex;
   align-items: center;
   cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.user-info:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .username {
   margin-left: 8px;
-  color: var(--text-secondary);
+  color: #ffffff;
   font-weight: 500;
+  font-size: 0.875rem;
 }
 
 .main-content {
-  padding: 20px;
+  padding: 24px;
   background-color: var(--bg-page);
-  min-height: calc(100vh - 120px);
+  min-height: calc(100vh - 128px);
 }
 
 .footer {
-  background-color: rgba(255, 255, 255, 0.9);
+  background-color: #ffffff;
   box-shadow: 0 -2px 16px rgba(168, 216, 234, 0.08);
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
-  padding: 0 20px;
-  height: 60px;
+  padding: 0 24px;
+  height: 64px;
   color: #718096;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
 }
 </style>

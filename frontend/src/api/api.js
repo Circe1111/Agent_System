@@ -129,6 +129,27 @@ export const updateLearningProfile = (profile) => {
   return api.post('/portrait/update', profile)
 }
 
+// 5. 分析学习风格：POST /portrait/analyze-style
+export const analyzeLearningStyle = () => {
+  return api.post('/portrait/analyze-style')
+}
+
+// ====== 对话历史记录接口 ======
+// 获取用户所有会话列表（含预览）
+export const getSessionList = () => {
+  return api.get('/conversation/sessions')
+}
+
+// 获取单个会话的完整对话记录
+export const getSessionConversations = (sessionId) => {
+  return api.get(`/conversation/session/${sessionId}`)
+}
+
+// 删除指定会话
+export const deleteSession = (sessionId) => {
+  return api.delete(`/conversation/session/${sessionId}`)
+}
+
 // 5. AI 对话（SSE 流式）：POST /api/v1/chat/stream
 // EventSource 不支持 POST，所以用 fetch + ReadableStream 手写解析
 // 入参:
@@ -259,7 +280,28 @@ export const previewFile = (course, path) => {
   return api.get('/resources/preview', { params: { course, path } })
 }
 
-// 生成学习路径
+// ====== 学习路径 API ======
+// 获取用户所有学习路径
+export const getLearningPaths = () => {
+  return api.get('/learning-path/list')
+}
+
+// 获取指定目标的学习路径
+export const getLearningPathByGoal = (goal) => {
+  return api.get(`/learning-path/${encodeURIComponent(goal)}`)
+}
+
+// 保存学习路径到后端
+export const saveLearningPath = (goal, steps) => {
+  return api.post('/learning-path/save', { goal, steps })
+}
+
+// 删除指定目标的学习路径
+export const deleteLearningPath = (goal) => {
+  return api.delete(`/learning-path/${encodeURIComponent(goal)}`)
+}
+
+// 生成学习路径（保留兼容）
 export const generateLearningPath = (profile) => {
   return api.post('/path/generate', profile)
 }

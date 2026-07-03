@@ -8,7 +8,7 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 
-const showNavbar = computed(() => route.path !== '/login')
+const showNavbar = computed(() => route.path !== '/login' && route.path !== '/register')
 const isAuthenticated = computed(() => userStore.isAuthenticated)
 const isAdmin = computed(() => userStore.isAdmin)
 const username = computed(() => userStore.userInfo?.username || '用户')
@@ -22,7 +22,7 @@ const userRole = computed(() => {
 
 const goHome = () => {
   if (userStore.isAuthenticated) {
-    router.push('/dashboard')
+    router.push('/chat')
   } else {
     router.push('/login')
   }
@@ -49,7 +49,6 @@ const handleCommand = (cmd) => {
       </div>
 
       <nav class="nav-links" v-if="isAuthenticated">
-        <router-link to="/dashboard" class="nav-link">首页</router-link>
         <router-link to="/chat" class="nav-link">AI对话</router-link>
         <router-link to="/path" class="nav-link">学习路径</router-link>
         <router-link to="/resources" class="nav-link">学习资源</router-link>
@@ -102,76 +101,76 @@ const handleCommand = (cmd) => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 24px;
-  background: linear-gradient(135deg, #a8d8ea 0%, #b5ead7 100%);
-  color: var(--text-primary, #5a7d9a);
-  box-shadow: 0 2px 16px rgba(168, 216, 234, 0.15);
+  padding: 16px 24px;
+  background: #1253D2;
+  color: #ffffff;
+  box-shadow: 0 2px 16px rgba(18, 83, 210, 0.25);
 }
 
 .brand {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 1.1rem;
+  font-size: 1.3rem;
   font-weight: bold;
   cursor: pointer;
-  color: var(--text-primary, #5a7d9a);
+  color: #ffffff;
 }
 
 .brand-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.6);
-  color: #5a7d9a;
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
 }
 
 .nav-links {
   display: flex;
-  gap: 16px;
+  gap: 24px;
   flex-wrap: wrap;
 }
 
 .nav-link,
 .login-link {
-  color: #7a9db5;
+  color: rgba(255, 255, 255, 0.85);
   text-decoration: none;
-  font-size: 0.95rem;
+  font-size: 1.15rem;
   font-weight: 500;
   transition: color 0.2s ease;
 }
 
 .nav-link:hover,
 .login-link:hover {
-  color: #5a7d9a;
+  color: #ffffff;
 }
 
 .nav-link.router-link-active {
-  color: #5a7d9a;
+  color: #ffffff;
   font-weight: bold;
 }
 
 .nav-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .user-menu-trigger {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   padding: 4px 8px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.6);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.15);
   cursor: pointer;
 }
 
 .nav-avatar {
-  background: linear-gradient(135deg, #a8d8ea, #b5ead7);
+  background: rgba(255, 255, 255, 0.25);
 }
 
 .user-meta {
@@ -183,12 +182,12 @@ const handleCommand = (cmd) => {
 .user-name {
   font-size: 0.92rem;
   font-weight: 600;
-  color: #5a7d9a;
+  color: #ffffff;
 }
 
 .user-role {
   font-size: 0.75rem;
-  color: #8fa4b8;
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .page-content {
@@ -199,7 +198,7 @@ const handleCommand = (cmd) => {
 @media (max-width: 900px) {
   .top-nav {
     flex-wrap: wrap;
-    gap: 12px;
+    gap: 16px;
   }
 
   .nav-links {

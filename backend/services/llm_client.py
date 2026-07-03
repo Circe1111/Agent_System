@@ -23,7 +23,9 @@ from urllib.parse import urlencode, urlparse
 from typing import Any, List, Optional
 
 from dotenv import load_dotenv
-load_dotenv()
+
+_ENV_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), '.env')
+load_dotenv(_ENV_FILE)
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +50,7 @@ class LLMClient:
         self.model: str = model or os.getenv("LLM_MODEL", "opencode-go/deepseek-v4-flash")
         self.embed_model: str = embed_model or os.getenv("LLM_EMBED_MODEL", "text-embedding-3-small")
         self.timeout: int = int(os.getenv("LLM_TIMEOUT", "60"))
+        self.app_id: str = os.getenv("SPARK_APP_ID") or os.getenv("LLM_APP_ID", "")
 
     # ---- internals --------------------------------------------------------
 
@@ -59,6 +62,8 @@ class LLMClient:
                 "Content-Type": "application/json",
                 "Accept": "application/json",
             }
+            if self.app_id:
+                headers["X-Appid"] = self.app_id
             if api_key and api_secret:
                 encoded_auth = base64.b64encode(
                     f"{api_key}:{api_secret}".encode('utf-8')
@@ -155,9 +160,11 @@ class LLMClient:
             "max_tokens": max_tokens,
         }
         payload.update(kwargs)
+
+        is_spark = "xf-yun.com" in self.base_url
+
         resp = requests.post(
-            # If targeting Xunfei Spark, use a signed URL
-            self._spark_signed_url() if "xf-yun.com" in self.base_url else self._chat_url(),
+            self._spark_signed_url() if is_spark else self._chat_url(),
             headers=self._headers(),
             json=payload,
             stream=stream,

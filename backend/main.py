@@ -1,5 +1,4 @@
 from dotenv import load_dotenv
-load_dotenv()
 
 import json
 import sys
@@ -12,6 +11,8 @@ if ROOT_DIR not in sys.path:
 BACKEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
+
+load_dotenv(os.path.join(ROOT_DIR, '.env'))
 
 from api.portrait_router import router as portrait_router
 from api.conversation_router import router as conv_router
@@ -62,7 +63,9 @@ app.include_router(conv_router)
 app.include_router(portrait_router)
 app.include_router(chat_stream_router)
 from api.settings_router import router as settings_router
+from api.learning_path_router import router as learning_path_router
 app.include_router(settings_router)
+app.include_router(learning_path_router)
 app.include_router(resources_router)
 
 @app.get("/")
@@ -83,6 +86,9 @@ async def agent_chat_stream(request: dict, current_user: int = Depends(get_curre
     pipeline and streams LangGraph events to the client as Server-Sent Events.
     """
     async def event_stream():
+        from database.connect import SessionLocal
+        from database.crud_learning_path import save_learning_path as persist_learning_path
+
         graph = create_workflow_graph()
         state = AgentState(
             user_id=str(current_user),
@@ -93,6 +99,20 @@ async def agent_chat_stream(request: dict, current_user: int = Depends(get_curre
         try:
             for event in graph.stream(state):
                 yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+                if "planner" in event and "learning_path" in event["planner"]:
+                    learning_path = event["planner"]["learning_path"]
+                    profile = event.get("profile", {}) if "profile" in event else state.get("profile", {})
+                    goal = profile.get("interest", "") or profile.get("weak_points", "") or "默认目标"
+                    db = SessionLocal()
+                    try:
+                        persist_learning_path(
+                            db=db,
+                            user_id=current_user,
+                            goal=goal,
+                            steps=learning_path if isinstance(learning_path, list) else []
+                        )
+                    finally:
+                        db.close()
         except Exception as exc:  # noqa: BLE001
             yield f"data: {json.dumps({'error': str(exc)}, ensure_ascii=False)}\n\n"
 

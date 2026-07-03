@@ -35,7 +35,8 @@ class Students(Base):
     course = Column(String(100), comment="课程")
     study_goal = Column(String(255), comment="学习目标")
     knowledge_level = Column(String(50), comment="知识基础")
-    learning_preference = Column(String(50), comment="学习偏好")
+    learning_preference = Column(String(50), comment="学习偏好（认知风格）")
+    learning_style = Column(String(50), comment="偏好学习方式")
     weak_knowledge = Column(String(255), comment="薄弱知识")
     study_time = Column(String(50), comment="学习时间")
     raw_json = Column(JSON, comment="原始JSON数据（可选）")
@@ -74,6 +75,19 @@ from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 # 使用统一的 Base 注册（来自 database.connect）
 from database.connect import Base
+
+
+# 学习路径表
+class LearningPath(Base):
+    __tablename__ = "learning_path"
+
+    id = Column(Integer, primary_key=True, index=True, autoincrement=True, comment="路径主键ID")
+    user_id = Column(Integer, nullable=False, index=True, comment="关联用户ID")
+    goal = Column(String(255), nullable=False, comment="学习目标/主题")
+    steps = Column(JSON, nullable=False, comment="学习路径步骤列表(JSON)")
+    created_at = Column(DateTime, server_default=func.now(), comment="创建时间")
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now(), comment="更新时间")
+
 
 class Conversation(Base):
     __tablename__ = "conversation"

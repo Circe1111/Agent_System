@@ -17,12 +17,7 @@ const routes = [
     component: () => import('../views/RegisterView.vue'),
     meta: { requiresAuth: false },
   },
-  {
-    path: '/dashboard',
-    name: 'Dashboard',
-    component: () => import('../views/DashboardView.vue'),
-    meta: { requiresAuth: true },
-  },
+
   {
     path: '/profile',
     name: 'Profile',
@@ -80,7 +75,7 @@ router.beforeEach((to, from, next) => {
   if (to.meta.requiresAuth && !token) {
     next('/login')
   } else if (to.meta.admin && userRole !== 'admin') {
-    next('/dashboard')
+    next('/chat')
   } else {
     next()
   }

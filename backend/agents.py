@@ -7,7 +7,7 @@ from rag.document_loader import DocumentLoader, TextSplitter, Document
 from rag.embeddings import EmbeddingClient
 from rag.vector_store import VectorStore, RAGRetriever
 from database.connect import get_db
-from database.models import Students, LearningRecords
+from database.models import Students, LearningRecords, EduUser
 from prompt.manager import prompt_manager
 
 # Unified LLM client (OpenAI-compatible)
@@ -90,30 +90,35 @@ def get_user_profile(user_id: str):
     db = next(get_db())
     try:
         user_profile = db.query(Students).filter(Students.id == user_id).first()
-        if user_profile:
+        edu_user = db.query(EduUser).filter(EduUser.id == user_id).first()
+        if user_profile or edu_user:
             profile = {}
-            if user_profile.name:
-                profile["姓名"] = user_profile.name
-            if user_profile.major:
-                profile["专业"] = user_profile.major
-            if user_profile.knowledge_level:
-                profile["知识基础"] = user_profile.knowledge_level
-            if user_profile.learning_preference:
-                profile["学习偏好"] = user_profile.learning_preference
-            if user_profile.weak_knowledge:
-                profile["薄弱知识"] = user_profile.weak_knowledge
-            if user_profile.study_goal:
-                profile["学习目标"] = user_profile.study_goal
-            if user_profile.study_time:
-                profile["学习时间"] = user_profile.study_time
-            if user_profile.course:
-                profile["课程"] = user_profile.course
-            if user_profile.raw_json:
-                try:
-                    if isinstance(user_profile.raw_json, dict):
-                        profile.update(user_profile.raw_json)
-                except Exception:
-                    pass
+            if edu_user:
+                profile["姓名"] = edu_user.username or edu_user.nickname or ""
+                profile["账号"] = edu_user.username or ""
+            if user_profile:
+                if user_profile.name:
+                    profile["姓名"] = user_profile.name
+                if user_profile.major:
+                    profile["专业"] = user_profile.major
+                if user_profile.knowledge_level:
+                    profile["知识基础"] = user_profile.knowledge_level
+                if user_profile.learning_preference:
+                    profile["学习偏好"] = user_profile.learning_preference
+                if user_profile.weak_knowledge:
+                    profile["薄弱知识"] = user_profile.weak_knowledge
+                if user_profile.study_goal:
+                    profile["学习目标"] = user_profile.study_goal
+                if user_profile.study_time:
+                    profile["学习时间"] = user_profile.study_time
+                if user_profile.course:
+                    profile["课程"] = user_profile.course
+                if user_profile.raw_json:
+                    try:
+                        if isinstance(user_profile.raw_json, dict):
+                            profile.update(user_profile.raw_json)
+                    except Exception:
+                        pass
             return profile
     except Exception as e:
         print(f">>> 获取用户画像失败: {e}")

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Dict, Any
+from pydantic import BaseModel
 
 # 数据库会话依赖
 from database.connect import get_db
@@ -11,13 +12,24 @@ from database.crud_conversation import (
     create_conversation,
     get_session_conversations,
     get_user_all_session_ids,
+    get_user_session_list,
     delete_session_conversation,
     delete_user_all_conversation
 )
 # 数据模型
-from schemas.conversation_schema import ConversationCreate, ConversationItem,SessionListResp
+from schemas.conversation_schema import ConversationCreate, ConversationItem, SessionListResp
 
 router = APIRouter(prefix="/conversation", tags=["对话会话模块"])
+
+# 新增 SessionList 响应模型
+class SessionInfo(BaseModel):
+    session_id: str
+    last_time: str
+    msg_count: int
+    preview: str
+
+class SessionListResult(BaseModel):
+    sessions: List[SessionInfo]
 
 # 1. 新增一条对话消息
 @router.post("/add", response_model=ConversationItem)
@@ -52,6 +64,15 @@ def get_all_session(
 ):
     session_ids = get_user_all_session_ids(db, current_uid)
     return {"session_ids": session_ids}
+
+# 3.5 获取用户会话列表（含预览）
+@router.get("/sessions", response_model=SessionListResult)
+def get_sessions_with_preview(
+    db: Session = Depends(get_db),
+    current_uid: int = Depends(get_current_user)
+):
+    sessions = get_user_session_list(db, current_uid)
+    return {"sessions": sessions}
 
 # 4. 删除指定会话全部消息
 @router.delete("/session/{session_id}")
